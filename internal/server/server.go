@@ -6,6 +6,7 @@ import (
 
 	apigen "github.com/kevinmchugh/inventory/internal/api/gen"
 	dbgen "github.com/kevinmchugh/inventory/internal/db/gen"
+	"github.com/kevinmchugh/inventory/internal/server/kinds"
 	"github.com/kevinmchugh/inventory/internal/server/tenants"
 )
 
@@ -67,29 +68,48 @@ func (s *Server) DeleteTenant(ctx context.Context, req apigen.DeleteTenantReques
 }
 
 // -----------------------------------------------------------------------------
-// Kinds — TODO(next commit): replace stubs with real endpoints.
+// Kinds
 // -----------------------------------------------------------------------------
 
-func (s *Server) ListKinds(context.Context, apigen.ListKindsRequestObject) (apigen.ListKindsResponseObject, error) {
-	return nil, errNotImplemented
+func (s *Server) ListKinds(ctx context.Context, req apigen.ListKindsRequestObject) (apigen.ListKindsResponseObject, error) {
+	return Run(ctx, kinds.ListEndpoint{Store: s.q}, req)
 }
-func (s *Server) CreateKind(context.Context, apigen.CreateKindRequestObject) (apigen.CreateKindResponseObject, error) {
-	return nil, errNotImplemented
+
+func (s *Server) GetKind(ctx context.Context, req apigen.GetKindRequestObject) (apigen.GetKindResponseObject, error) {
+	resp, err := Run(ctx, kinds.GetEndpoint{Store: s.q}, req)
+	if IsNotFound(err) {
+		return apigen.GetKind404JSONResponse{NotFoundJSONResponse: apigen.NotFoundJSONResponse{Message: "kind not found"}}, nil
+	}
+	return resp, err
 }
-func (s *Server) GetKind(context.Context, apigen.GetKindRequestObject) (apigen.GetKindResponseObject, error) {
-	return nil, errNotImplemented
+
+func (s *Server) CreateKind(ctx context.Context, req apigen.CreateKindRequestObject) (apigen.CreateKindResponseObject, error) {
+	if req.Body == nil {
+		return nil, errors.New("body required")
+	}
+	return Run(ctx, kinds.CreateEndpoint{Store: s.q}, req)
 }
-func (s *Server) UpdateKind(context.Context, apigen.UpdateKindRequestObject) (apigen.UpdateKindResponseObject, error) {
-	return nil, errNotImplemented
+
+func (s *Server) UpdateKind(ctx context.Context, req apigen.UpdateKindRequestObject) (apigen.UpdateKindResponseObject, error) {
+	if req.Body == nil {
+		return nil, errors.New("body required")
+	}
+	return Run(ctx, kinds.UpdateEndpoint{Store: s.q}, req)
 }
-func (s *Server) DeleteKind(context.Context, apigen.DeleteKindRequestObject) (apigen.DeleteKindResponseObject, error) {
-	return nil, errNotImplemented
+
+func (s *Server) DeleteKind(ctx context.Context, req apigen.DeleteKindRequestObject) (apigen.DeleteKindResponseObject, error) {
+	return Run(ctx, kinds.DeleteEndpoint{Store: s.q}, req)
 }
-func (s *Server) ListKindVersions(context.Context, apigen.ListKindVersionsRequestObject) (apigen.ListKindVersionsResponseObject, error) {
-	return nil, errNotImplemented
+
+func (s *Server) ListKindVersions(ctx context.Context, req apigen.ListKindVersionsRequestObject) (apigen.ListKindVersionsResponseObject, error) {
+	return Run(ctx, kinds.ListVersionsEndpoint{Store: s.q}, req)
 }
-func (s *Server) CreateKindVersion(context.Context, apigen.CreateKindVersionRequestObject) (apigen.CreateKindVersionResponseObject, error) {
-	return nil, errNotImplemented
+
+func (s *Server) CreateKindVersion(ctx context.Context, req apigen.CreateKindVersionRequestObject) (apigen.CreateKindVersionResponseObject, error) {
+	if req.Body == nil {
+		return nil, errors.New("body required")
+	}
+	return Run(ctx, kinds.CreateVersionEndpoint{Store: s.q}, req)
 }
 
 // -----------------------------------------------------------------------------
