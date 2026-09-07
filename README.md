@@ -50,6 +50,7 @@ web/                    Vite + React + TypeScript UI
 - [Architecture](docs/architecture.md) — packages, request flow, code-gen boundaries
 - [Adding a resource](docs/adding-a-resource.md) — end-to-end recipe
 - [MCP](docs/mcp.md) — transport, tools, adding new ones
+- [Deploy](docs/deploy.md) — the fly.io sprite recipe
 - [CLAUDE.md](CLAUDE.md) — orientation for Claude Code sessions
 
 ## Make targets
@@ -68,4 +69,4 @@ web/                    Vite + React + TypeScript UI
 
 ## Deploy target
 
-fly.io.
+fly.io sprite — see [docs/deploy.md](docs/deploy.md). Currently running at `https://inventory-b2mxg.sprites.app` (MCP at `/mcp`).
