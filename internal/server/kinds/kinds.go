@@ -8,6 +8,7 @@ import (
 	"github.com/rs/xid"
 
 	apigen "github.com/KevinMcHugh/inventory/internal/api/gen"
+	"github.com/KevinMcHugh/inventory/internal/auth"
 	dbgen "github.com/KevinMcHugh/inventory/internal/db/gen"
 )
 
@@ -24,7 +25,7 @@ type ViewModel struct {
 	UpdatedAt   time.Time
 }
 
-func toViewModel(k dbgen.Kind) ViewModel {
+func ToViewModel(k dbgen.Kind) ViewModel {
 	return ViewModel{
 		ID:          k.ID,
 		TenantID:    k.TenantID,
@@ -56,14 +57,18 @@ type ListStore interface {
 
 type ListEndpoint struct{ Store ListStore }
 
-func (e ListEndpoint) Interact(ctx context.Context, req apigen.ListKindsRequestObject) ([]dbgen.Kind, error) {
-	return e.Store.ListKindsByTenant(ctx, req.TenantId)
+func (e ListEndpoint) Interact(ctx context.Context, _ apigen.ListKindsRequestObject) ([]dbgen.Kind, error) {
+	tenantID, err := auth.TenantID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return e.Store.ListKindsByTenant(ctx, tenantID)
 }
 
 func (e ListEndpoint) Build(ks []dbgen.Kind) []ViewModel {
 	out := make([]ViewModel, len(ks))
 	for i, k := range ks {
-		out[i] = toViewModel(k)
+		out[i] = ToViewModel(k)
 	}
 	return out
 }
@@ -87,10 +92,14 @@ type GetStore interface {
 type GetEndpoint struct{ Store GetStore }
 
 func (e GetEndpoint) Interact(ctx context.Context, req apigen.GetKindRequestObject) (dbgen.Kind, error) {
-	return e.Store.GetKind(ctx, dbgen.GetKindParams{ID: req.KindId, TenantID: req.TenantId})
+	tenantID, err := auth.TenantID(ctx)
+	if err != nil {
+		return dbgen.Kind{}, err
+	}
+	return e.Store.GetKind(ctx, dbgen.GetKindParams{ID: req.KindId, TenantID: tenantID})
 }
 
-func (e GetEndpoint) Build(k dbgen.Kind) ViewModel { return toViewModel(k) }
+func (e GetEndpoint) Build(k dbgen.Kind) ViewModel { return ToViewModel(k) }
 
 func (e GetEndpoint) Render(vm ViewModel) apigen.GetKindResponseObject {
 	return apigen.GetKind200JSONResponse(toAPI(vm))
@@ -107,15 +116,19 @@ type CreateStore interface {
 type CreateEndpoint struct{ Store CreateStore }
 
 func (e CreateEndpoint) Interact(ctx context.Context, req apigen.CreateKindRequestObject) (dbgen.Kind, error) {
+	tenantID, err := auth.TenantID(ctx)
+	if err != nil {
+		return dbgen.Kind{}, err
+	}
 	return e.Store.CreateKind(ctx, dbgen.CreateKindParams{
 		ID:          xid.New().String(),
-		TenantID:    req.TenantId,
+		TenantID:    tenantID,
 		Name:        req.Body.Name,
 		Description: req.Body.Description,
 	})
 }
 
-func (e CreateEndpoint) Build(k dbgen.Kind) ViewModel { return toViewModel(k) }
+func (e CreateEndpoint) Build(k dbgen.Kind) ViewModel { return ToViewModel(k) }
 
 func (e CreateEndpoint) Render(vm ViewModel) apigen.CreateKindResponseObject {
 	return apigen.CreateKind201JSONResponse(toAPI(vm))
@@ -132,15 +145,19 @@ type UpdateStore interface {
 type UpdateEndpoint struct{ Store UpdateStore }
 
 func (e UpdateEndpoint) Interact(ctx context.Context, req apigen.UpdateKindRequestObject) (dbgen.Kind, error) {
+	tenantID, err := auth.TenantID(ctx)
+	if err != nil {
+		return dbgen.Kind{}, err
+	}
 	return e.Store.UpdateKind(ctx, dbgen.UpdateKindParams{
 		ID:          req.KindId,
-		TenantID:    req.TenantId,
+		TenantID:    tenantID,
 		Name:        req.Body.Name,
 		Description: req.Body.Description,
 	})
 }
 
-func (e UpdateEndpoint) Build(k dbgen.Kind) ViewModel { return toViewModel(k) }
+func (e UpdateEndpoint) Build(k dbgen.Kind) ViewModel { return ToViewModel(k) }
 
 func (e UpdateEndpoint) Render(vm ViewModel) apigen.UpdateKindResponseObject {
 	return apigen.UpdateKind200JSONResponse(toAPI(vm))
@@ -157,7 +174,11 @@ type DeleteStore interface {
 type DeleteEndpoint struct{ Store DeleteStore }
 
 func (e DeleteEndpoint) Interact(ctx context.Context, req apigen.DeleteKindRequestObject) (bool, error) {
-	return true, e.Store.DeleteKind(ctx, dbgen.DeleteKindParams{ID: req.KindId, TenantID: req.TenantId})
+	tenantID, err := auth.TenantID(ctx)
+	if err != nil {
+		return false, err
+	}
+	return true, e.Store.DeleteKind(ctx, dbgen.DeleteKindParams{ID: req.KindId, TenantID: tenantID})
 }
 
 func (e DeleteEndpoint) Build(_ bool) bool { return true }
@@ -178,7 +199,7 @@ type VersionViewModel struct {
 	UpdatedAt time.Time
 }
 
-func toVersionViewModel(v dbgen.KindVersion) VersionViewModel {
+func ToVersionViewModel(v dbgen.KindVersion) VersionViewModel {
 	var schema map[string]any
 	if len(v.Schema) > 0 {
 		_ = json.Unmarshal(v.Schema, &schema)
@@ -219,7 +240,7 @@ func (e ListVersionsEndpoint) Interact(ctx context.Context, req apigen.ListKindV
 func (e ListVersionsEndpoint) Build(vs []dbgen.KindVersion) []VersionViewModel {
 	out := make([]VersionViewModel, len(vs))
 	for i, v := range vs {
-		out[i] = toVersionViewModel(v)
+		out[i] = ToVersionViewModel(v)
 	}
 	return out
 }
@@ -255,7 +276,7 @@ func (e CreateVersionEndpoint) Interact(ctx context.Context, req apigen.CreateKi
 }
 
 func (e CreateVersionEndpoint) Build(v dbgen.KindVersion) VersionViewModel {
-	return toVersionViewModel(v)
+	return ToVersionViewModel(v)
 }
 
 func (e CreateVersionEndpoint) Render(vm VersionViewModel) apigen.CreateKindVersionResponseObject {

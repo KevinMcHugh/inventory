@@ -31,41 +31,18 @@ func (s *Server) GetHealth(_ context.Context, _ apigen.GetHealthRequestObject) (
 }
 
 // -----------------------------------------------------------------------------
-// Tenants
+// Tenant (self)
 // -----------------------------------------------------------------------------
 
-func (s *Server) ListTenants(ctx context.Context, req apigen.ListTenantsRequestObject) (apigen.ListTenantsResponseObject, error) {
-	return Run(ctx, tenants.ListEndpoint{Store: s.q}, req)
-}
-
 func (s *Server) GetTenant(ctx context.Context, req apigen.GetTenantRequestObject) (apigen.GetTenantResponseObject, error) {
-	resp, err := Run(ctx, tenants.GetEndpoint{Store: s.q}, req)
-	if IsNotFound(err) {
-		return apigen.GetTenant404JSONResponse{NotFoundJSONResponse: apigen.NotFoundJSONResponse{Message: "tenant not found"}}, nil
-	}
-	return resp, err
-}
-
-func (s *Server) CreateTenant(ctx context.Context, req apigen.CreateTenantRequestObject) (apigen.CreateTenantResponseObject, error) {
-	if req.Body == nil {
-		return apigen.CreateTenant400JSONResponse{BadRequestJSONResponse: apigen.BadRequestJSONResponse{Message: "body required"}}, nil
-	}
-	return Run(ctx, tenants.CreateEndpoint{Store: s.q}, req)
+	return Run(ctx, tenants.GetEndpoint{Store: s.q}, req)
 }
 
 func (s *Server) UpdateTenant(ctx context.Context, req apigen.UpdateTenantRequestObject) (apigen.UpdateTenantResponseObject, error) {
 	if req.Body == nil {
 		return nil, errors.New("body required")
 	}
-	resp, err := Run(ctx, tenants.UpdateEndpoint{Store: s.q}, req)
-	if IsNotFound(err) {
-		return apigen.UpdateTenant404JSONResponse{NotFoundJSONResponse: apigen.NotFoundJSONResponse{Message: "tenant not found"}}, nil
-	}
-	return resp, err
-}
-
-func (s *Server) DeleteTenant(ctx context.Context, req apigen.DeleteTenantRequestObject) (apigen.DeleteTenantResponseObject, error) {
-	return Run(ctx, tenants.DeleteEndpoint{Store: s.q}, req)
+	return Run(ctx, tenants.UpdateEndpoint{Store: s.q}, req)
 }
 
 // -----------------------------------------------------------------------------

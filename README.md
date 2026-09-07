@@ -29,7 +29,7 @@ Everything except `/health` requires `Authorization: Bearer <key>`. Mint the fir
 make bootstrap NAME="Kev"
 ```
 
-MCP is mounted at `http://localhost:8080/mcp`. REST is at `http://localhost:8080/tenants/...`.
+MCP is mounted at `http://localhost:8080/mcp`. REST is at `http://localhost:8080/kinds/...` (tenant is derived from your api key — no tenantId in the URL).
 
 ## Repo layout
 

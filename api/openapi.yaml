@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: Inventory API
-  description: General-purpose datastore for AI agents
-  version: 0.1.0
+  description: General-purpose datastore for AI agents. Every route except /health requires Authorization Bearer with an api key; the key resolves to a tenant, so tenantId is never a URL parameter.
+  version: 0.2.0
 
 servers:
   - url: http://localhost:8080
@@ -21,44 +21,10 @@ paths:
               schema:
                 $ref: "#/components/schemas/Health"
 
-  /tenants:
-    get:
-      operationId: listTenants
-      summary: List all tenants
-      responses:
-        "200":
-          description: List of tenants
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Tenant"
-    post:
-      operationId: createTenant
-      summary: Create a tenant
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/TenantCreate"
-      responses:
-        "201":
-          description: Tenant created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Tenant"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-
-  /tenants/{tenantId}:
-    parameters:
-      - $ref: "#/components/parameters/TenantId"
+  /tenant:
     get:
       operationId: getTenant
-      summary: Get a tenant by id
+      summary: Return the caller's tenant
       responses:
         "200":
           description: The tenant
@@ -66,11 +32,9 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Tenant"
-        "404":
-          $ref: "#/components/responses/NotFound"
     put:
       operationId: updateTenant
-      summary: Update a tenant
+      summary: Rename the caller's tenant
       requestBody:
         required: true
         content:
@@ -84,23 +48,11 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Tenant"
-        "404":
-          $ref: "#/components/responses/NotFound"
-    delete:
-      operationId: deleteTenant
-      summary: Soft-delete a tenant
-      responses:
-        "204":
-          description: Tenant deleted
-        "404":
-          $ref: "#/components/responses/NotFound"
 
-  /tenants/{tenantId}/kinds:
-    parameters:
-      - $ref: "#/components/parameters/TenantId"
+  /kinds:
     get:
       operationId: listKinds
-      summary: List kinds for a tenant
+      summary: List kinds for the caller's tenant
       responses:
         "200":
           description: List of kinds
@@ -127,9 +79,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/Kind"
 
-  /tenants/{tenantId}/kinds/{kindId}:
+  /kinds/{kindId}:
     parameters:
-      - $ref: "#/components/parameters/TenantId"
       - $ref: "#/components/parameters/KindId"
     get:
       operationId: getKind
@@ -166,9 +117,8 @@ paths:
         "204":
           description: Kind deleted
 
-  /tenants/{tenantId}/kinds/{kindId}/versions:
+  /kinds/{kindId}/versions:
     parameters:
-      - $ref: "#/components/parameters/TenantId"
       - $ref: "#/components/parameters/KindId"
     get:
       operationId: listKindVersions
@@ -199,9 +149,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/KindVersion"
 
-  /tenants/{tenantId}/kinds/{kindId}/models:
+  /kinds/{kindId}/models:
     parameters:
-      - $ref: "#/components/parameters/TenantId"
       - $ref: "#/components/parameters/KindId"
     get:
       operationId: listModels
@@ -232,9 +181,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/Model"
 
-  /tenants/{tenantId}/kinds/{kindId}/models/{slug}:
+  /kinds/{kindId}/models/{slug}:
     parameters:
-      - $ref: "#/components/parameters/TenantId"
       - $ref: "#/components/parameters/KindId"
       - $ref: "#/components/parameters/Slug"
     get:
@@ -274,14 +222,6 @@ paths:
 
 components:
   parameters:
-    TenantId:
-      name: tenantId
-      in: path
-      required: true
-      schema:
-        type: string
-        minLength: 20
-        maxLength: 20
     KindId:
       name: kindId
       in: path
@@ -342,13 +282,6 @@ components:
         updatedAt:
           type: string
           format: date-time
-
-    TenantCreate:
-      type: object
-      required: [name]
-      properties:
-        name:
-          type: string
 
     TenantUpdate:
       type: object

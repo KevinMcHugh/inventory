@@ -105,11 +105,6 @@ type Tenant struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-// TenantCreate defines model for TenantCreate.
-type TenantCreate struct {
-	Name string `json:"name"`
-}
-
 // TenantUpdate defines model for TenantUpdate.
 type TenantUpdate struct {
 	Name string `json:"name"`
@@ -121,20 +116,8 @@ type KindId = string
 // Slug defines model for Slug.
 type Slug = string
 
-// TenantId defines model for TenantId.
-type TenantId = string
-
-// BadRequest defines model for BadRequest.
-type BadRequest = Error
-
 // NotFound defines model for NotFound.
 type NotFound = Error
-
-// CreateTenantJSONRequestBody defines body for CreateTenant for application/json ContentType.
-type CreateTenantJSONRequestBody = TenantCreate
-
-// UpdateTenantJSONRequestBody defines body for UpdateTenant for application/json ContentType.
-type UpdateTenantJSONRequestBody = TenantUpdate
 
 // CreateKindJSONRequestBody defines body for CreateKind for application/json ContentType.
 type CreateKindJSONRequestBody = KindCreate
@@ -151,62 +134,56 @@ type UpdateModelJSONRequestBody = ModelUpdate
 // CreateKindVersionJSONRequestBody defines body for CreateKindVersion for application/json ContentType.
 type CreateKindVersionJSONRequestBody = KindVersionCreate
 
+// UpdateTenantJSONRequestBody defines body for UpdateTenant for application/json ContentType.
+type UpdateTenantJSONRequestBody = TenantUpdate
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// GetHealth Health check
 	// (GET /health)
 	GetHealth(w http.ResponseWriter, r *http.Request)
-	// ListTenants List all tenants
-	// (GET /tenants)
-	ListTenants(w http.ResponseWriter, r *http.Request)
-	// CreateTenant Create a tenant
-	// (POST /tenants)
-	CreateTenant(w http.ResponseWriter, r *http.Request)
-	// DeleteTenant Soft-delete a tenant
-	// (DELETE /tenants/{tenantId})
-	DeleteTenant(w http.ResponseWriter, r *http.Request, tenantId TenantId)
-	// GetTenant Get a tenant by id
-	// (GET /tenants/{tenantId})
-	GetTenant(w http.ResponseWriter, r *http.Request, tenantId TenantId)
-	// UpdateTenant Update a tenant
-	// (PUT /tenants/{tenantId})
-	UpdateTenant(w http.ResponseWriter, r *http.Request, tenantId TenantId)
-	// ListKinds List kinds for a tenant
-	// (GET /tenants/{tenantId}/kinds)
-	ListKinds(w http.ResponseWriter, r *http.Request, tenantId TenantId)
+	// ListKinds List kinds for the caller's tenant
+	// (GET /kinds)
+	ListKinds(w http.ResponseWriter, r *http.Request)
 	// CreateKind Create a kind
-	// (POST /tenants/{tenantId}/kinds)
-	CreateKind(w http.ResponseWriter, r *http.Request, tenantId TenantId)
+	// (POST /kinds)
+	CreateKind(w http.ResponseWriter, r *http.Request)
 	// DeleteKind Soft-delete a kind
-	// (DELETE /tenants/{tenantId}/kinds/{kindId})
-	DeleteKind(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId)
+	// (DELETE /kinds/{kindId})
+	DeleteKind(w http.ResponseWriter, r *http.Request, kindId KindId)
 	// GetKind Get a kind by id
-	// (GET /tenants/{tenantId}/kinds/{kindId})
-	GetKind(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId)
+	// (GET /kinds/{kindId})
+	GetKind(w http.ResponseWriter, r *http.Request, kindId KindId)
 	// UpdateKind Update a kind
-	// (PUT /tenants/{tenantId}/kinds/{kindId})
-	UpdateKind(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId)
+	// (PUT /kinds/{kindId})
+	UpdateKind(w http.ResponseWriter, r *http.Request, kindId KindId)
 	// ListModels List models for a kind
-	// (GET /tenants/{tenantId}/kinds/{kindId}/models)
-	ListModels(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId)
+	// (GET /kinds/{kindId}/models)
+	ListModels(w http.ResponseWriter, r *http.Request, kindId KindId)
 	// CreateModel Create a model
-	// (POST /tenants/{tenantId}/kinds/{kindId}/models)
-	CreateModel(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId)
+	// (POST /kinds/{kindId}/models)
+	CreateModel(w http.ResponseWriter, r *http.Request, kindId KindId)
 	// DeleteModel Soft-delete a model
-	// (DELETE /tenants/{tenantId}/kinds/{kindId}/models/{slug})
-	DeleteModel(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId, slug Slug)
+	// (DELETE /kinds/{kindId}/models/{slug})
+	DeleteModel(w http.ResponseWriter, r *http.Request, kindId KindId, slug Slug)
 	// GetModel Get a model by slug
-	// (GET /tenants/{tenantId}/kinds/{kindId}/models/{slug})
-	GetModel(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId, slug Slug)
+	// (GET /kinds/{kindId}/models/{slug})
+	GetModel(w http.ResponseWriter, r *http.Request, kindId KindId, slug Slug)
 	// UpdateModel Update a model
-	// (PUT /tenants/{tenantId}/kinds/{kindId}/models/{slug})
-	UpdateModel(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId, slug Slug)
+	// (PUT /kinds/{kindId}/models/{slug})
+	UpdateModel(w http.ResponseWriter, r *http.Request, kindId KindId, slug Slug)
 	// ListKindVersions List versions for a kind
-	// (GET /tenants/{tenantId}/kinds/{kindId}/versions)
-	ListKindVersions(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId)
+	// (GET /kinds/{kindId}/versions)
+	ListKindVersions(w http.ResponseWriter, r *http.Request, kindId KindId)
 	// CreateKindVersion Create a new kind version
-	// (POST /tenants/{tenantId}/kinds/{kindId}/versions)
-	CreateKindVersion(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId)
+	// (POST /kinds/{kindId}/versions)
+	CreateKindVersion(w http.ResponseWriter, r *http.Request, kindId KindId)
+	// GetTenant Return the caller's tenant
+	// (GET /tenant)
+	GetTenant(w http.ResponseWriter, r *http.Request)
+	// UpdateTenant Rename the caller's tenant
+	// (PUT /tenant)
+	UpdateTenant(w http.ResponseWriter, r *http.Request)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -219,105 +196,87 @@ func (_ Unimplemented) GetHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// ListTenants List all tenants
-// (GET /tenants)
-func (_ Unimplemented) ListTenants(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// CreateTenant Create a tenant
-// (POST /tenants)
-func (_ Unimplemented) CreateTenant(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// DeleteTenant Soft-delete a tenant
-// (DELETE /tenants/{tenantId})
-func (_ Unimplemented) DeleteTenant(w http.ResponseWriter, r *http.Request, tenantId TenantId) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// GetTenant Get a tenant by id
-// (GET /tenants/{tenantId})
-func (_ Unimplemented) GetTenant(w http.ResponseWriter, r *http.Request, tenantId TenantId) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// UpdateTenant Update a tenant
-// (PUT /tenants/{tenantId})
-func (_ Unimplemented) UpdateTenant(w http.ResponseWriter, r *http.Request, tenantId TenantId) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// ListKinds List kinds for a tenant
-// (GET /tenants/{tenantId}/kinds)
-func (_ Unimplemented) ListKinds(w http.ResponseWriter, r *http.Request, tenantId TenantId) {
+// ListKinds List kinds for the caller's tenant
+// (GET /kinds)
+func (_ Unimplemented) ListKinds(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // CreateKind Create a kind
-// (POST /tenants/{tenantId}/kinds)
-func (_ Unimplemented) CreateKind(w http.ResponseWriter, r *http.Request, tenantId TenantId) {
+// (POST /kinds)
+func (_ Unimplemented) CreateKind(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // DeleteKind Soft-delete a kind
-// (DELETE /tenants/{tenantId}/kinds/{kindId})
-func (_ Unimplemented) DeleteKind(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId) {
+// (DELETE /kinds/{kindId})
+func (_ Unimplemented) DeleteKind(w http.ResponseWriter, r *http.Request, kindId KindId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // GetKind Get a kind by id
-// (GET /tenants/{tenantId}/kinds/{kindId})
-func (_ Unimplemented) GetKind(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId) {
+// (GET /kinds/{kindId})
+func (_ Unimplemented) GetKind(w http.ResponseWriter, r *http.Request, kindId KindId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // UpdateKind Update a kind
-// (PUT /tenants/{tenantId}/kinds/{kindId})
-func (_ Unimplemented) UpdateKind(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId) {
+// (PUT /kinds/{kindId})
+func (_ Unimplemented) UpdateKind(w http.ResponseWriter, r *http.Request, kindId KindId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // ListModels List models for a kind
-// (GET /tenants/{tenantId}/kinds/{kindId}/models)
-func (_ Unimplemented) ListModels(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId) {
+// (GET /kinds/{kindId}/models)
+func (_ Unimplemented) ListModels(w http.ResponseWriter, r *http.Request, kindId KindId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // CreateModel Create a model
-// (POST /tenants/{tenantId}/kinds/{kindId}/models)
-func (_ Unimplemented) CreateModel(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId) {
+// (POST /kinds/{kindId}/models)
+func (_ Unimplemented) CreateModel(w http.ResponseWriter, r *http.Request, kindId KindId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // DeleteModel Soft-delete a model
-// (DELETE /tenants/{tenantId}/kinds/{kindId}/models/{slug})
-func (_ Unimplemented) DeleteModel(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId, slug Slug) {
+// (DELETE /kinds/{kindId}/models/{slug})
+func (_ Unimplemented) DeleteModel(w http.ResponseWriter, r *http.Request, kindId KindId, slug Slug) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // GetModel Get a model by slug
-// (GET /tenants/{tenantId}/kinds/{kindId}/models/{slug})
-func (_ Unimplemented) GetModel(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId, slug Slug) {
+// (GET /kinds/{kindId}/models/{slug})
+func (_ Unimplemented) GetModel(w http.ResponseWriter, r *http.Request, kindId KindId, slug Slug) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // UpdateModel Update a model
-// (PUT /tenants/{tenantId}/kinds/{kindId}/models/{slug})
-func (_ Unimplemented) UpdateModel(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId, slug Slug) {
+// (PUT /kinds/{kindId}/models/{slug})
+func (_ Unimplemented) UpdateModel(w http.ResponseWriter, r *http.Request, kindId KindId, slug Slug) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // ListKindVersions List versions for a kind
-// (GET /tenants/{tenantId}/kinds/{kindId}/versions)
-func (_ Unimplemented) ListKindVersions(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId) {
+// (GET /kinds/{kindId}/versions)
+func (_ Unimplemented) ListKindVersions(w http.ResponseWriter, r *http.Request, kindId KindId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // CreateKindVersion Create a new kind version
-// (POST /tenants/{tenantId}/kinds/{kindId}/versions)
-func (_ Unimplemented) CreateKindVersion(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId) {
+// (POST /kinds/{kindId}/versions)
+func (_ Unimplemented) CreateKindVersion(w http.ResponseWriter, r *http.Request, kindId KindId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetTenant Return the caller's tenant
+// (GET /tenant)
+func (_ Unimplemented) GetTenant(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// UpdateTenant Rename the caller's tenant
+// (PUT /tenant)
+func (_ Unimplemented) UpdateTenant(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -344,129 +303,11 @@ func (siw *ServerInterfaceWrapper) GetHealth(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
-// ListTenants operation middleware
-func (siw *ServerInterfaceWrapper) ListTenants(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListTenants(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// CreateTenant operation middleware
-func (siw *ServerInterfaceWrapper) CreateTenant(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CreateTenant(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// DeleteTenant operation middleware
-func (siw *ServerInterfaceWrapper) DeleteTenant(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// ------------- Path parameter "tenantId" -------------
-	var tenantId TenantId
-
-	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", chi.URLParam(r, "tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DeleteTenant(w, r, tenantId)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// GetTenant operation middleware
-func (siw *ServerInterfaceWrapper) GetTenant(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// ------------- Path parameter "tenantId" -------------
-	var tenantId TenantId
-
-	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", chi.URLParam(r, "tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetTenant(w, r, tenantId)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// UpdateTenant operation middleware
-func (siw *ServerInterfaceWrapper) UpdateTenant(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// ------------- Path parameter "tenantId" -------------
-	var tenantId TenantId
-
-	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", chi.URLParam(r, "tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.UpdateTenant(w, r, tenantId)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
 // ListKinds operation middleware
 func (siw *ServerInterfaceWrapper) ListKinds(w http.ResponseWriter, r *http.Request) {
 
-	var err error
-	_ = err
-
-	// ------------- Path parameter "tenantId" -------------
-	var tenantId TenantId
-
-	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", chi.URLParam(r, "tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
-		return
-	}
-
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListKinds(w, r, tenantId)
+		siw.Handler.ListKinds(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -479,20 +320,8 @@ func (siw *ServerInterfaceWrapper) ListKinds(w http.ResponseWriter, r *http.Requ
 // CreateKind operation middleware
 func (siw *ServerInterfaceWrapper) CreateKind(w http.ResponseWriter, r *http.Request) {
 
-	var err error
-	_ = err
-
-	// ------------- Path parameter "tenantId" -------------
-	var tenantId TenantId
-
-	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", chi.URLParam(r, "tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
-		return
-	}
-
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CreateKind(w, r, tenantId)
+		siw.Handler.CreateKind(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -508,15 +337,6 @@ func (siw *ServerInterfaceWrapper) DeleteKind(w http.ResponseWriter, r *http.Req
 	var err error
 	_ = err
 
-	// ------------- Path parameter "tenantId" -------------
-	var tenantId TenantId
-
-	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", chi.URLParam(r, "tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
-		return
-	}
-
 	// ------------- Path parameter "kindId" -------------
 	var kindId KindId
 
@@ -527,7 +347,7 @@ func (siw *ServerInterfaceWrapper) DeleteKind(w http.ResponseWriter, r *http.Req
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DeleteKind(w, r, tenantId, kindId)
+		siw.Handler.DeleteKind(w, r, kindId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -543,15 +363,6 @@ func (siw *ServerInterfaceWrapper) GetKind(w http.ResponseWriter, r *http.Reques
 	var err error
 	_ = err
 
-	// ------------- Path parameter "tenantId" -------------
-	var tenantId TenantId
-
-	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", chi.URLParam(r, "tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
-		return
-	}
-
 	// ------------- Path parameter "kindId" -------------
 	var kindId KindId
 
@@ -562,7 +373,7 @@ func (siw *ServerInterfaceWrapper) GetKind(w http.ResponseWriter, r *http.Reques
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetKind(w, r, tenantId, kindId)
+		siw.Handler.GetKind(w, r, kindId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -578,15 +389,6 @@ func (siw *ServerInterfaceWrapper) UpdateKind(w http.ResponseWriter, r *http.Req
 	var err error
 	_ = err
 
-	// ------------- Path parameter "tenantId" -------------
-	var tenantId TenantId
-
-	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", chi.URLParam(r, "tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
-		return
-	}
-
 	// ------------- Path parameter "kindId" -------------
 	var kindId KindId
 
@@ -597,7 +399,7 @@ func (siw *ServerInterfaceWrapper) UpdateKind(w http.ResponseWriter, r *http.Req
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.UpdateKind(w, r, tenantId, kindId)
+		siw.Handler.UpdateKind(w, r, kindId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -613,15 +415,6 @@ func (siw *ServerInterfaceWrapper) ListModels(w http.ResponseWriter, r *http.Req
 	var err error
 	_ = err
 
-	// ------------- Path parameter "tenantId" -------------
-	var tenantId TenantId
-
-	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", chi.URLParam(r, "tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
-		return
-	}
-
 	// ------------- Path parameter "kindId" -------------
 	var kindId KindId
 
@@ -632,7 +425,7 @@ func (siw *ServerInterfaceWrapper) ListModels(w http.ResponseWriter, r *http.Req
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListModels(w, r, tenantId, kindId)
+		siw.Handler.ListModels(w, r, kindId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -648,15 +441,6 @@ func (siw *ServerInterfaceWrapper) CreateModel(w http.ResponseWriter, r *http.Re
 	var err error
 	_ = err
 
-	// ------------- Path parameter "tenantId" -------------
-	var tenantId TenantId
-
-	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", chi.URLParam(r, "tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
-		return
-	}
-
 	// ------------- Path parameter "kindId" -------------
 	var kindId KindId
 
@@ -667,7 +451,7 @@ func (siw *ServerInterfaceWrapper) CreateModel(w http.ResponseWriter, r *http.Re
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CreateModel(w, r, tenantId, kindId)
+		siw.Handler.CreateModel(w, r, kindId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -683,15 +467,6 @@ func (siw *ServerInterfaceWrapper) DeleteModel(w http.ResponseWriter, r *http.Re
 	var err error
 	_ = err
 
-	// ------------- Path parameter "tenantId" -------------
-	var tenantId TenantId
-
-	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", chi.URLParam(r, "tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
-		return
-	}
-
 	// ------------- Path parameter "kindId" -------------
 	var kindId KindId
 
@@ -711,7 +486,7 @@ func (siw *ServerInterfaceWrapper) DeleteModel(w http.ResponseWriter, r *http.Re
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DeleteModel(w, r, tenantId, kindId, slug)
+		siw.Handler.DeleteModel(w, r, kindId, slug)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -727,15 +502,6 @@ func (siw *ServerInterfaceWrapper) GetModel(w http.ResponseWriter, r *http.Reque
 	var err error
 	_ = err
 
-	// ------------- Path parameter "tenantId" -------------
-	var tenantId TenantId
-
-	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", chi.URLParam(r, "tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
-		return
-	}
-
 	// ------------- Path parameter "kindId" -------------
 	var kindId KindId
 
@@ -755,7 +521,7 @@ func (siw *ServerInterfaceWrapper) GetModel(w http.ResponseWriter, r *http.Reque
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetModel(w, r, tenantId, kindId, slug)
+		siw.Handler.GetModel(w, r, kindId, slug)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -771,15 +537,6 @@ func (siw *ServerInterfaceWrapper) UpdateModel(w http.ResponseWriter, r *http.Re
 	var err error
 	_ = err
 
-	// ------------- Path parameter "tenantId" -------------
-	var tenantId TenantId
-
-	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", chi.URLParam(r, "tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
-		return
-	}
-
 	// ------------- Path parameter "kindId" -------------
 	var kindId KindId
 
@@ -799,7 +556,7 @@ func (siw *ServerInterfaceWrapper) UpdateModel(w http.ResponseWriter, r *http.Re
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.UpdateModel(w, r, tenantId, kindId, slug)
+		siw.Handler.UpdateModel(w, r, kindId, slug)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -815,15 +572,6 @@ func (siw *ServerInterfaceWrapper) ListKindVersions(w http.ResponseWriter, r *ht
 	var err error
 	_ = err
 
-	// ------------- Path parameter "tenantId" -------------
-	var tenantId TenantId
-
-	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", chi.URLParam(r, "tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
-		return
-	}
-
 	// ------------- Path parameter "kindId" -------------
 	var kindId KindId
 
@@ -834,7 +582,7 @@ func (siw *ServerInterfaceWrapper) ListKindVersions(w http.ResponseWriter, r *ht
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListKindVersions(w, r, tenantId, kindId)
+		siw.Handler.ListKindVersions(w, r, kindId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -850,15 +598,6 @@ func (siw *ServerInterfaceWrapper) CreateKindVersion(w http.ResponseWriter, r *h
 	var err error
 	_ = err
 
-	// ------------- Path parameter "tenantId" -------------
-	var tenantId TenantId
-
-	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", chi.URLParam(r, "tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
-		return
-	}
-
 	// ------------- Path parameter "kindId" -------------
 	var kindId KindId
 
@@ -869,7 +608,35 @@ func (siw *ServerInterfaceWrapper) CreateKindVersion(w http.ResponseWriter, r *h
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CreateKindVersion(w, r, tenantId, kindId)
+		siw.Handler.CreateKindVersion(w, r, kindId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetTenant operation middleware
+func (siw *ServerInterfaceWrapper) GetTenant(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetTenant(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateTenant operation middleware
+func (siw *ServerInterfaceWrapper) UpdateTenant(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateTenant(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -996,61 +763,50 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/health", wrapper.GetHealth)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/tenants", wrapper.ListTenants)
+		r.Get(options.BaseURL+"/tenant", wrapper.GetTenant)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/tenants", wrapper.CreateTenant)
+		r.Put(options.BaseURL+"/tenant", wrapper.UpdateTenant)
 	})
 	r.Group(func(r chi.Router) {
-		r.Delete(options.BaseURL+"/tenants/{tenantId}", wrapper.DeleteTenant)
+		r.Get(options.BaseURL+"/kinds", wrapper.ListKinds)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/tenants/{tenantId}", wrapper.GetTenant)
+		r.Post(options.BaseURL+"/kinds", wrapper.CreateKind)
 	})
 	r.Group(func(r chi.Router) {
-		r.Put(options.BaseURL+"/tenants/{tenantId}", wrapper.UpdateTenant)
+		r.Delete(options.BaseURL+"/kinds/{kindId}", wrapper.DeleteKind)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/tenants/{tenantId}/kinds", wrapper.ListKinds)
+		r.Get(options.BaseURL+"/kinds/{kindId}", wrapper.GetKind)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/tenants/{tenantId}/kinds", wrapper.CreateKind)
+		r.Put(options.BaseURL+"/kinds/{kindId}", wrapper.UpdateKind)
 	})
 	r.Group(func(r chi.Router) {
-		r.Delete(options.BaseURL+"/tenants/{tenantId}/kinds/{kindId}", wrapper.DeleteKind)
+		r.Get(options.BaseURL+"/kinds/{kindId}/versions", wrapper.ListKindVersions)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/tenants/{tenantId}/kinds/{kindId}", wrapper.GetKind)
+		r.Post(options.BaseURL+"/kinds/{kindId}/versions", wrapper.CreateKindVersion)
 	})
 	r.Group(func(r chi.Router) {
-		r.Put(options.BaseURL+"/tenants/{tenantId}/kinds/{kindId}", wrapper.UpdateKind)
+		r.Get(options.BaseURL+"/kinds/{kindId}/models", wrapper.ListModels)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/tenants/{tenantId}/kinds/{kindId}/versions", wrapper.ListKindVersions)
+		r.Post(options.BaseURL+"/kinds/{kindId}/models", wrapper.CreateModel)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/tenants/{tenantId}/kinds/{kindId}/versions", wrapper.CreateKindVersion)
+		r.Delete(options.BaseURL+"/kinds/{kindId}/models/{slug}", wrapper.DeleteModel)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/tenants/{tenantId}/kinds/{kindId}/models", wrapper.ListModels)
+		r.Get(options.BaseURL+"/kinds/{kindId}/models/{slug}", wrapper.GetModel)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/tenants/{tenantId}/kinds/{kindId}/models", wrapper.CreateModel)
-	})
-	r.Group(func(r chi.Router) {
-		r.Delete(options.BaseURL+"/tenants/{tenantId}/kinds/{kindId}/models/{slug}", wrapper.DeleteModel)
-	})
-	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/tenants/{tenantId}/kinds/{kindId}/models/{slug}", wrapper.GetModel)
-	})
-	r.Group(func(r chi.Router) {
-		r.Put(options.BaseURL+"/tenants/{tenantId}/kinds/{kindId}/models/{slug}", wrapper.UpdateModel)
+		r.Put(options.BaseURL+"/kinds/{kindId}/models/{slug}", wrapper.UpdateModel)
 	})
 
 	return r
 }
-
-type BadRequestJSONResponse Error
 
 type NotFoundJSONResponse Error
 
@@ -1075,168 +831,7 @@ func (response GetHealth200JSONResponse) VisitGetHealthResponse(w http.ResponseW
 	return err
 }
 
-type ListTenantsRequestObject struct {
-}
-
-type ListTenantsResponseObject interface {
-	VisitListTenantsResponse(w http.ResponseWriter) error
-}
-
-type ListTenants200JSONResponse []Tenant
-
-func (response ListTenants200JSONResponse) VisitListTenantsResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
-type CreateTenantRequestObject struct {
-	Body *CreateTenantJSONRequestBody
-}
-
-type CreateTenantResponseObject interface {
-	VisitCreateTenantResponse(w http.ResponseWriter) error
-}
-
-type CreateTenant201JSONResponse Tenant
-
-func (response CreateTenant201JSONResponse) VisitCreateTenantResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(201)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
-type CreateTenant400JSONResponse struct{ BadRequestJSONResponse }
-
-func (response CreateTenant400JSONResponse) VisitCreateTenantResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
-type DeleteTenantRequestObject struct {
-	TenantId TenantId `json:"tenantId"`
-}
-
-type DeleteTenantResponseObject interface {
-	VisitDeleteTenantResponse(w http.ResponseWriter) error
-}
-
-type DeleteTenant204Response struct {
-}
-
-func (response DeleteTenant204Response) VisitDeleteTenantResponse(w http.ResponseWriter) error {
-	w.WriteHeader(204)
-	return nil
-}
-
-type DeleteTenant404JSONResponse struct{ NotFoundJSONResponse }
-
-func (response DeleteTenant404JSONResponse) VisitDeleteTenantResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
-type GetTenantRequestObject struct {
-	TenantId TenantId `json:"tenantId"`
-}
-
-type GetTenantResponseObject interface {
-	VisitGetTenantResponse(w http.ResponseWriter) error
-}
-
-type GetTenant200JSONResponse Tenant
-
-func (response GetTenant200JSONResponse) VisitGetTenantResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
-type GetTenant404JSONResponse struct{ NotFoundJSONResponse }
-
-func (response GetTenant404JSONResponse) VisitGetTenantResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
-type UpdateTenantRequestObject struct {
-	TenantId TenantId `json:"tenantId"`
-	Body     *UpdateTenantJSONRequestBody
-}
-
-type UpdateTenantResponseObject interface {
-	VisitUpdateTenantResponse(w http.ResponseWriter) error
-}
-
-type UpdateTenant200JSONResponse Tenant
-
-func (response UpdateTenant200JSONResponse) VisitUpdateTenantResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
-type UpdateTenant404JSONResponse struct{ NotFoundJSONResponse }
-
-func (response UpdateTenant404JSONResponse) VisitUpdateTenantResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
 type ListKindsRequestObject struct {
-	TenantId TenantId `json:"tenantId"`
 }
 
 type ListKindsResponseObject interface {
@@ -1258,8 +853,7 @@ func (response ListKinds200JSONResponse) VisitListKindsResponse(w http.ResponseW
 }
 
 type CreateKindRequestObject struct {
-	TenantId TenantId `json:"tenantId"`
-	Body     *CreateKindJSONRequestBody
+	Body *CreateKindJSONRequestBody
 }
 
 type CreateKindResponseObject interface {
@@ -1281,8 +875,7 @@ func (response CreateKind201JSONResponse) VisitCreateKindResponse(w http.Respons
 }
 
 type DeleteKindRequestObject struct {
-	TenantId TenantId `json:"tenantId"`
-	KindId   KindId   `json:"kindId"`
+	KindId KindId `json:"kindId"`
 }
 
 type DeleteKindResponseObject interface {
@@ -1298,8 +891,7 @@ func (response DeleteKind204Response) VisitDeleteKindResponse(w http.ResponseWri
 }
 
 type GetKindRequestObject struct {
-	TenantId TenantId `json:"tenantId"`
-	KindId   KindId   `json:"kindId"`
+	KindId KindId `json:"kindId"`
 }
 
 type GetKindResponseObject interface {
@@ -1335,9 +927,8 @@ func (response GetKind404JSONResponse) VisitGetKindResponse(w http.ResponseWrite
 }
 
 type UpdateKindRequestObject struct {
-	TenantId TenantId `json:"tenantId"`
-	KindId   KindId   `json:"kindId"`
-	Body     *UpdateKindJSONRequestBody
+	KindId KindId `json:"kindId"`
+	Body   *UpdateKindJSONRequestBody
 }
 
 type UpdateKindResponseObject interface {
@@ -1359,8 +950,7 @@ func (response UpdateKind200JSONResponse) VisitUpdateKindResponse(w http.Respons
 }
 
 type ListModelsRequestObject struct {
-	TenantId TenantId `json:"tenantId"`
-	KindId   KindId   `json:"kindId"`
+	KindId KindId `json:"kindId"`
 }
 
 type ListModelsResponseObject interface {
@@ -1382,9 +972,8 @@ func (response ListModels200JSONResponse) VisitListModelsResponse(w http.Respons
 }
 
 type CreateModelRequestObject struct {
-	TenantId TenantId `json:"tenantId"`
-	KindId   KindId   `json:"kindId"`
-	Body     *CreateModelJSONRequestBody
+	KindId KindId `json:"kindId"`
+	Body   *CreateModelJSONRequestBody
 }
 
 type CreateModelResponseObject interface {
@@ -1406,9 +995,8 @@ func (response CreateModel201JSONResponse) VisitCreateModelResponse(w http.Respo
 }
 
 type DeleteModelRequestObject struct {
-	TenantId TenantId `json:"tenantId"`
-	KindId   KindId   `json:"kindId"`
-	Slug     Slug     `json:"slug"`
+	KindId KindId `json:"kindId"`
+	Slug   Slug   `json:"slug"`
 }
 
 type DeleteModelResponseObject interface {
@@ -1424,9 +1012,8 @@ func (response DeleteModel204Response) VisitDeleteModelResponse(w http.ResponseW
 }
 
 type GetModelRequestObject struct {
-	TenantId TenantId `json:"tenantId"`
-	KindId   KindId   `json:"kindId"`
-	Slug     Slug     `json:"slug"`
+	KindId KindId `json:"kindId"`
+	Slug   Slug   `json:"slug"`
 }
 
 type GetModelResponseObject interface {
@@ -1462,10 +1049,9 @@ func (response GetModel404JSONResponse) VisitGetModelResponse(w http.ResponseWri
 }
 
 type UpdateModelRequestObject struct {
-	TenantId TenantId `json:"tenantId"`
-	KindId   KindId   `json:"kindId"`
-	Slug     Slug     `json:"slug"`
-	Body     *UpdateModelJSONRequestBody
+	KindId KindId `json:"kindId"`
+	Slug   Slug   `json:"slug"`
+	Body   *UpdateModelJSONRequestBody
 }
 
 type UpdateModelResponseObject interface {
@@ -1487,8 +1073,7 @@ func (response UpdateModel200JSONResponse) VisitUpdateModelResponse(w http.Respo
 }
 
 type ListKindVersionsRequestObject struct {
-	TenantId TenantId `json:"tenantId"`
-	KindId   KindId   `json:"kindId"`
+	KindId KindId `json:"kindId"`
 }
 
 type ListKindVersionsResponseObject interface {
@@ -1510,9 +1095,8 @@ func (response ListKindVersions200JSONResponse) VisitListKindVersionsResponse(w 
 }
 
 type CreateKindVersionRequestObject struct {
-	TenantId TenantId `json:"tenantId"`
-	KindId   KindId   `json:"kindId"`
-	Body     *CreateKindVersionJSONRequestBody
+	KindId KindId `json:"kindId"`
+	Body   *CreateKindVersionJSONRequestBody
 }
 
 type CreateKindVersionResponseObject interface {
@@ -1533,62 +1117,96 @@ func (response CreateKindVersion201JSONResponse) VisitCreateKindVersionResponse(
 	return err
 }
 
+type GetTenantRequestObject struct {
+}
+
+type GetTenantResponseObject interface {
+	VisitGetTenantResponse(w http.ResponseWriter) error
+}
+
+type GetTenant200JSONResponse Tenant
+
+func (response GetTenant200JSONResponse) VisitGetTenantResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateTenantRequestObject struct {
+	Body *UpdateTenantJSONRequestBody
+}
+
+type UpdateTenantResponseObject interface {
+	VisitUpdateTenantResponse(w http.ResponseWriter) error
+}
+
+type UpdateTenant200JSONResponse Tenant
+
+func (response UpdateTenant200JSONResponse) VisitUpdateTenantResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// GetHealth Health check
 	// (GET /health)
 	GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error)
-	// ListTenants List all tenants
-	// (GET /tenants)
-	ListTenants(ctx context.Context, request ListTenantsRequestObject) (ListTenantsResponseObject, error)
-	// CreateTenant Create a tenant
-	// (POST /tenants)
-	CreateTenant(ctx context.Context, request CreateTenantRequestObject) (CreateTenantResponseObject, error)
-	// DeleteTenant Soft-delete a tenant
-	// (DELETE /tenants/{tenantId})
-	DeleteTenant(ctx context.Context, request DeleteTenantRequestObject) (DeleteTenantResponseObject, error)
-	// GetTenant Get a tenant by id
-	// (GET /tenants/{tenantId})
-	GetTenant(ctx context.Context, request GetTenantRequestObject) (GetTenantResponseObject, error)
-	// UpdateTenant Update a tenant
-	// (PUT /tenants/{tenantId})
-	UpdateTenant(ctx context.Context, request UpdateTenantRequestObject) (UpdateTenantResponseObject, error)
-	// ListKinds List kinds for a tenant
-	// (GET /tenants/{tenantId}/kinds)
+	// ListKinds List kinds for the caller's tenant
+	// (GET /kinds)
 	ListKinds(ctx context.Context, request ListKindsRequestObject) (ListKindsResponseObject, error)
 	// CreateKind Create a kind
-	// (POST /tenants/{tenantId}/kinds)
+	// (POST /kinds)
 	CreateKind(ctx context.Context, request CreateKindRequestObject) (CreateKindResponseObject, error)
 	// DeleteKind Soft-delete a kind
-	// (DELETE /tenants/{tenantId}/kinds/{kindId})
+	// (DELETE /kinds/{kindId})
 	DeleteKind(ctx context.Context, request DeleteKindRequestObject) (DeleteKindResponseObject, error)
 	// GetKind Get a kind by id
-	// (GET /tenants/{tenantId}/kinds/{kindId})
+	// (GET /kinds/{kindId})
 	GetKind(ctx context.Context, request GetKindRequestObject) (GetKindResponseObject, error)
 	// UpdateKind Update a kind
-	// (PUT /tenants/{tenantId}/kinds/{kindId})
+	// (PUT /kinds/{kindId})
 	UpdateKind(ctx context.Context, request UpdateKindRequestObject) (UpdateKindResponseObject, error)
 	// ListModels List models for a kind
-	// (GET /tenants/{tenantId}/kinds/{kindId}/models)
+	// (GET /kinds/{kindId}/models)
 	ListModels(ctx context.Context, request ListModelsRequestObject) (ListModelsResponseObject, error)
 	// CreateModel Create a model
-	// (POST /tenants/{tenantId}/kinds/{kindId}/models)
+	// (POST /kinds/{kindId}/models)
 	CreateModel(ctx context.Context, request CreateModelRequestObject) (CreateModelResponseObject, error)
 	// DeleteModel Soft-delete a model
-	// (DELETE /tenants/{tenantId}/kinds/{kindId}/models/{slug})
+	// (DELETE /kinds/{kindId}/models/{slug})
 	DeleteModel(ctx context.Context, request DeleteModelRequestObject) (DeleteModelResponseObject, error)
 	// GetModel Get a model by slug
-	// (GET /tenants/{tenantId}/kinds/{kindId}/models/{slug})
+	// (GET /kinds/{kindId}/models/{slug})
 	GetModel(ctx context.Context, request GetModelRequestObject) (GetModelResponseObject, error)
 	// UpdateModel Update a model
-	// (PUT /tenants/{tenantId}/kinds/{kindId}/models/{slug})
+	// (PUT /kinds/{kindId}/models/{slug})
 	UpdateModel(ctx context.Context, request UpdateModelRequestObject) (UpdateModelResponseObject, error)
 	// ListKindVersions List versions for a kind
-	// (GET /tenants/{tenantId}/kinds/{kindId}/versions)
+	// (GET /kinds/{kindId}/versions)
 	ListKindVersions(ctx context.Context, request ListKindVersionsRequestObject) (ListKindVersionsResponseObject, error)
 	// CreateKindVersion Create a new kind version
-	// (POST /tenants/{tenantId}/kinds/{kindId}/versions)
+	// (POST /kinds/{kindId}/versions)
 	CreateKindVersion(ctx context.Context, request CreateKindVersionRequestObject) (CreateKindVersionResponseObject, error)
+	// GetTenant Return the caller's tenant
+	// (GET /tenant)
+	GetTenant(ctx context.Context, request GetTenantRequestObject) (GetTenantResponseObject, error)
+	// UpdateTenant Rename the caller's tenant
+	// (PUT /tenant)
+	UpdateTenant(ctx context.Context, request UpdateTenantRequestObject) (UpdateTenantResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error)
@@ -1654,151 +1272,9 @@ func (sh *strictHandler) GetHealth(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// ListTenants operation middleware
-func (sh *strictHandler) ListTenants(w http.ResponseWriter, r *http.Request) {
-	var request ListTenantsRequestObject
-
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.ListTenants(ctx, request.(ListTenantsRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "ListTenants")
-	}
-
-	response, err := handler(r.Context(), w, r, request)
-
-	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(ListTenantsResponseObject); ok {
-		if err := validResponse.VisitListTenantsResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
-	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// CreateTenant operation middleware
-func (sh *strictHandler) CreateTenant(w http.ResponseWriter, r *http.Request) {
-	var request CreateTenantRequestObject
-
-	var body CreateTenantJSONRequestBody
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
-		return
-	}
-	request.Body = &body
-
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.CreateTenant(ctx, request.(CreateTenantRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "CreateTenant")
-	}
-
-	response, err := handler(r.Context(), w, r, request)
-
-	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(CreateTenantResponseObject); ok {
-		if err := validResponse.VisitCreateTenantResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
-	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// DeleteTenant operation middleware
-func (sh *strictHandler) DeleteTenant(w http.ResponseWriter, r *http.Request, tenantId TenantId) {
-	var request DeleteTenantRequestObject
-
-	request.TenantId = tenantId
-
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.DeleteTenant(ctx, request.(DeleteTenantRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "DeleteTenant")
-	}
-
-	response, err := handler(r.Context(), w, r, request)
-
-	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(DeleteTenantResponseObject); ok {
-		if err := validResponse.VisitDeleteTenantResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
-	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// GetTenant operation middleware
-func (sh *strictHandler) GetTenant(w http.ResponseWriter, r *http.Request, tenantId TenantId) {
-	var request GetTenantRequestObject
-
-	request.TenantId = tenantId
-
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetTenant(ctx, request.(GetTenantRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetTenant")
-	}
-
-	response, err := handler(r.Context(), w, r, request)
-
-	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetTenantResponseObject); ok {
-		if err := validResponse.VisitGetTenantResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
-	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// UpdateTenant operation middleware
-func (sh *strictHandler) UpdateTenant(w http.ResponseWriter, r *http.Request, tenantId TenantId) {
-	var request UpdateTenantRequestObject
-
-	request.TenantId = tenantId
-
-	var body UpdateTenantJSONRequestBody
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
-		return
-	}
-	request.Body = &body
-
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.UpdateTenant(ctx, request.(UpdateTenantRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "UpdateTenant")
-	}
-
-	response, err := handler(r.Context(), w, r, request)
-
-	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(UpdateTenantResponseObject); ok {
-		if err := validResponse.VisitUpdateTenantResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
-	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
 // ListKinds operation middleware
-func (sh *strictHandler) ListKinds(w http.ResponseWriter, r *http.Request, tenantId TenantId) {
+func (sh *strictHandler) ListKinds(w http.ResponseWriter, r *http.Request) {
 	var request ListKindsRequestObject
-
-	request.TenantId = tenantId
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
 		return sh.ssi.ListKinds(ctx, request.(ListKindsRequestObject))
@@ -1821,10 +1297,8 @@ func (sh *strictHandler) ListKinds(w http.ResponseWriter, r *http.Request, tenan
 }
 
 // CreateKind operation middleware
-func (sh *strictHandler) CreateKind(w http.ResponseWriter, r *http.Request, tenantId TenantId) {
+func (sh *strictHandler) CreateKind(w http.ResponseWriter, r *http.Request) {
 	var request CreateKindRequestObject
-
-	request.TenantId = tenantId
 
 	var body CreateKindJSONRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -1854,10 +1328,9 @@ func (sh *strictHandler) CreateKind(w http.ResponseWriter, r *http.Request, tena
 }
 
 // DeleteKind operation middleware
-func (sh *strictHandler) DeleteKind(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId) {
+func (sh *strictHandler) DeleteKind(w http.ResponseWriter, r *http.Request, kindId KindId) {
 	var request DeleteKindRequestObject
 
-	request.TenantId = tenantId
 	request.KindId = kindId
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
@@ -1881,10 +1354,9 @@ func (sh *strictHandler) DeleteKind(w http.ResponseWriter, r *http.Request, tena
 }
 
 // GetKind operation middleware
-func (sh *strictHandler) GetKind(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId) {
+func (sh *strictHandler) GetKind(w http.ResponseWriter, r *http.Request, kindId KindId) {
 	var request GetKindRequestObject
 
-	request.TenantId = tenantId
 	request.KindId = kindId
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
@@ -1908,10 +1380,9 @@ func (sh *strictHandler) GetKind(w http.ResponseWriter, r *http.Request, tenantI
 }
 
 // UpdateKind operation middleware
-func (sh *strictHandler) UpdateKind(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId) {
+func (sh *strictHandler) UpdateKind(w http.ResponseWriter, r *http.Request, kindId KindId) {
 	var request UpdateKindRequestObject
 
-	request.TenantId = tenantId
 	request.KindId = kindId
 
 	var body UpdateKindJSONRequestBody
@@ -1942,10 +1413,9 @@ func (sh *strictHandler) UpdateKind(w http.ResponseWriter, r *http.Request, tena
 }
 
 // ListModels operation middleware
-func (sh *strictHandler) ListModels(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId) {
+func (sh *strictHandler) ListModels(w http.ResponseWriter, r *http.Request, kindId KindId) {
 	var request ListModelsRequestObject
 
-	request.TenantId = tenantId
 	request.KindId = kindId
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
@@ -1969,10 +1439,9 @@ func (sh *strictHandler) ListModels(w http.ResponseWriter, r *http.Request, tena
 }
 
 // CreateModel operation middleware
-func (sh *strictHandler) CreateModel(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId) {
+func (sh *strictHandler) CreateModel(w http.ResponseWriter, r *http.Request, kindId KindId) {
 	var request CreateModelRequestObject
 
-	request.TenantId = tenantId
 	request.KindId = kindId
 
 	var body CreateModelJSONRequestBody
@@ -2003,10 +1472,9 @@ func (sh *strictHandler) CreateModel(w http.ResponseWriter, r *http.Request, ten
 }
 
 // DeleteModel operation middleware
-func (sh *strictHandler) DeleteModel(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId, slug Slug) {
+func (sh *strictHandler) DeleteModel(w http.ResponseWriter, r *http.Request, kindId KindId, slug Slug) {
 	var request DeleteModelRequestObject
 
-	request.TenantId = tenantId
 	request.KindId = kindId
 	request.Slug = slug
 
@@ -2031,10 +1499,9 @@ func (sh *strictHandler) DeleteModel(w http.ResponseWriter, r *http.Request, ten
 }
 
 // GetModel operation middleware
-func (sh *strictHandler) GetModel(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId, slug Slug) {
+func (sh *strictHandler) GetModel(w http.ResponseWriter, r *http.Request, kindId KindId, slug Slug) {
 	var request GetModelRequestObject
 
-	request.TenantId = tenantId
 	request.KindId = kindId
 	request.Slug = slug
 
@@ -2059,10 +1526,9 @@ func (sh *strictHandler) GetModel(w http.ResponseWriter, r *http.Request, tenant
 }
 
 // UpdateModel operation middleware
-func (sh *strictHandler) UpdateModel(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId, slug Slug) {
+func (sh *strictHandler) UpdateModel(w http.ResponseWriter, r *http.Request, kindId KindId, slug Slug) {
 	var request UpdateModelRequestObject
 
-	request.TenantId = tenantId
 	request.KindId = kindId
 	request.Slug = slug
 
@@ -2094,10 +1560,9 @@ func (sh *strictHandler) UpdateModel(w http.ResponseWriter, r *http.Request, ten
 }
 
 // ListKindVersions operation middleware
-func (sh *strictHandler) ListKindVersions(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId) {
+func (sh *strictHandler) ListKindVersions(w http.ResponseWriter, r *http.Request, kindId KindId) {
 	var request ListKindVersionsRequestObject
 
-	request.TenantId = tenantId
 	request.KindId = kindId
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
@@ -2121,10 +1586,9 @@ func (sh *strictHandler) ListKindVersions(w http.ResponseWriter, r *http.Request
 }
 
 // CreateKindVersion operation middleware
-func (sh *strictHandler) CreateKindVersion(w http.ResponseWriter, r *http.Request, tenantId TenantId, kindId KindId) {
+func (sh *strictHandler) CreateKindVersion(w http.ResponseWriter, r *http.Request, kindId KindId) {
 	var request CreateKindVersionRequestObject
 
-	request.TenantId = tenantId
 	request.KindId = kindId
 
 	var body CreateKindVersionJSONRequestBody
@@ -2154,33 +1618,87 @@ func (sh *strictHandler) CreateKindVersion(w http.ResponseWriter, r *http.Reques
 	}
 }
 
+// GetTenant operation middleware
+func (sh *strictHandler) GetTenant(w http.ResponseWriter, r *http.Request) {
+	var request GetTenantRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetTenant(ctx, request.(GetTenantRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetTenant")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetTenantResponseObject); ok {
+		if err := validResponse.VisitGetTenantResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateTenant operation middleware
+func (sh *strictHandler) UpdateTenant(w http.ResponseWriter, r *http.Request) {
+	var request UpdateTenantRequestObject
+
+	var body UpdateTenantJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateTenant(ctx, request.(UpdateTenantRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateTenant")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateTenantResponseObject); ok {
+		if err := validResponse.VisitUpdateTenantResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Base64 encoded, compressed with deflate, json marshaled OpenAPI spec.
 // Stored as a slice of fixed-width chunks rather than one concatenated
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

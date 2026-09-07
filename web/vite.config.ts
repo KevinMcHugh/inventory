@@ -6,7 +6,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/tenants": "http://localhost:8080",
+      "/tenant": "http://localhost:8080",
+      "/kinds": "http://localhost:8080",
       "/health": "http://localhost:8080",
     },
   },

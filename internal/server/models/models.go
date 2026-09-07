@@ -8,6 +8,7 @@ import (
 	"github.com/rs/xid"
 
 	apigen "github.com/KevinMcHugh/inventory/internal/api/gen"
+	"github.com/KevinMcHugh/inventory/internal/auth"
 	dbgen "github.com/KevinMcHugh/inventory/internal/db/gen"
 )
 
@@ -26,7 +27,7 @@ type ViewModel struct {
 	UpdatedAt     time.Time
 }
 
-func toViewModel(m dbgen.Model) ViewModel {
+func ToViewModel(m dbgen.Model) ViewModel {
 	var body map[string]any
 	if len(m.Body) > 0 {
 		_ = json.Unmarshal(m.Body, &body)
@@ -67,8 +68,12 @@ type ListStore interface {
 type ListEndpoint struct{ Store ListStore }
 
 func (e ListEndpoint) Interact(ctx context.Context, req apigen.ListModelsRequestObject) ([]dbgen.Model, error) {
+	tenantID, err := auth.TenantID(ctx)
+	if err != nil {
+		return nil, err
+	}
 	return e.Store.ListModelsByKind(ctx, dbgen.ListModelsByKindParams{
-		TenantID: req.TenantId,
+		TenantID: tenantID,
 		KindID:   req.KindId,
 	})
 }
@@ -76,7 +81,7 @@ func (e ListEndpoint) Interact(ctx context.Context, req apigen.ListModelsRequest
 func (e ListEndpoint) Build(ms []dbgen.Model) []ViewModel {
 	out := make([]ViewModel, len(ms))
 	for i, m := range ms {
-		out[i] = toViewModel(m)
+		out[i] = ToViewModel(m)
 	}
 	return out
 }
@@ -100,14 +105,18 @@ type GetStore interface {
 type GetEndpoint struct{ Store GetStore }
 
 func (e GetEndpoint) Interact(ctx context.Context, req apigen.GetModelRequestObject) (dbgen.Model, error) {
+	tenantID, err := auth.TenantID(ctx)
+	if err != nil {
+		return dbgen.Model{}, err
+	}
 	return e.Store.GetModelBySlug(ctx, dbgen.GetModelBySlugParams{
-		TenantID: req.TenantId,
+		TenantID: tenantID,
 		KindID:   req.KindId,
 		Slug:     req.Slug,
 	})
 }
 
-func (e GetEndpoint) Build(m dbgen.Model) ViewModel { return toViewModel(m) }
+func (e GetEndpoint) Build(m dbgen.Model) ViewModel { return ToViewModel(m) }
 
 func (e GetEndpoint) Render(vm ViewModel) apigen.GetModelResponseObject {
 	return apigen.GetModel200JSONResponse(toAPI(vm))
@@ -125,6 +134,10 @@ type CreateStore interface {
 type CreateEndpoint struct{ Store CreateStore }
 
 func (e CreateEndpoint) Interact(ctx context.Context, req apigen.CreateModelRequestObject) (dbgen.Model, error) {
+	tenantID, err := auth.TenantID(ctx)
+	if err != nil {
+		return dbgen.Model{}, err
+	}
 	versionID, err := resolveVersion(ctx, e.Store, req.KindId, req.Body.KindVersionId)
 	if err != nil {
 		return dbgen.Model{}, err
@@ -135,7 +148,7 @@ func (e CreateEndpoint) Interact(ctx context.Context, req apigen.CreateModelRequ
 	}
 	return e.Store.CreateModel(ctx, dbgen.CreateModelParams{
 		ID:            xid.New().String(),
-		TenantID:      req.TenantId,
+		TenantID:      tenantID,
 		KindID:        req.KindId,
 		KindVersionID: versionID,
 		Slug:          req.Body.Slug,
@@ -143,7 +156,7 @@ func (e CreateEndpoint) Interact(ctx context.Context, req apigen.CreateModelRequ
 	})
 }
 
-func (e CreateEndpoint) Build(m dbgen.Model) ViewModel { return toViewModel(m) }
+func (e CreateEndpoint) Build(m dbgen.Model) ViewModel { return ToViewModel(m) }
 
 func (e CreateEndpoint) Render(vm ViewModel) apigen.CreateModelResponseObject {
 	return apigen.CreateModel201JSONResponse(toAPI(vm))
@@ -161,6 +174,10 @@ type UpdateStore interface {
 type UpdateEndpoint struct{ Store UpdateStore }
 
 func (e UpdateEndpoint) Interact(ctx context.Context, req apigen.UpdateModelRequestObject) (dbgen.Model, error) {
+	tenantID, err := auth.TenantID(ctx)
+	if err != nil {
+		return dbgen.Model{}, err
+	}
 	versionID, err := resolveVersion(ctx, e.Store, req.KindId, req.Body.KindVersionId)
 	if err != nil {
 		return dbgen.Model{}, err
@@ -170,7 +187,7 @@ func (e UpdateEndpoint) Interact(ctx context.Context, req apigen.UpdateModelRequ
 		return dbgen.Model{}, err
 	}
 	return e.Store.UpdateModelBySlug(ctx, dbgen.UpdateModelBySlugParams{
-		TenantID:      req.TenantId,
+		TenantID:      tenantID,
 		KindID:        req.KindId,
 		Slug:          req.Slug,
 		Body:          bodyBytes,
@@ -178,7 +195,7 @@ func (e UpdateEndpoint) Interact(ctx context.Context, req apigen.UpdateModelRequ
 	})
 }
 
-func (e UpdateEndpoint) Build(m dbgen.Model) ViewModel { return toViewModel(m) }
+func (e UpdateEndpoint) Build(m dbgen.Model) ViewModel { return ToViewModel(m) }
 
 func (e UpdateEndpoint) Render(vm ViewModel) apigen.UpdateModelResponseObject {
 	return apigen.UpdateModel200JSONResponse(toAPI(vm))
@@ -195,8 +212,12 @@ type DeleteStore interface {
 type DeleteEndpoint struct{ Store DeleteStore }
 
 func (e DeleteEndpoint) Interact(ctx context.Context, req apigen.DeleteModelRequestObject) (bool, error) {
+	tenantID, err := auth.TenantID(ctx)
+	if err != nil {
+		return false, err
+	}
 	return true, e.Store.DeleteModelBySlug(ctx, dbgen.DeleteModelBySlugParams{
-		TenantID: req.TenantId,
+		TenantID: tenantID,
 		KindID:   req.KindId,
 		Slug:     req.Slug,
 	})
@@ -212,8 +233,6 @@ func (e DeleteEndpoint) Render(_ bool) apigen.DeleteModelResponseObject {
 // helpers
 // -----------------------------------------------------------------------------
 
-// versionResolver is the subset of the store needed to look up a fallback
-// KindVersion when the caller does not supply one.
 type versionResolver interface {
 	GetLatestKindVersion(ctx context.Context, kindID string) (dbgen.KindVersion, error)
 }

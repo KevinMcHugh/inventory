@@ -62,9 +62,7 @@ Edit `api/openapi.yaml`. Add the paths under `paths:` and the schemas under `com
 
 ```yaml
 paths:
-  /tenants/{tenantId}/widgets:
-    parameters:
-      - $ref: "#/components/parameters/TenantId"
+  /widgets:
     get:
       operationId: listWidgets
       responses: { "200": { ... } }
@@ -72,7 +70,7 @@ paths:
       operationId: createWidget
       requestBody: { ... }
       responses: { "201": { ... } }
-  # ... plus /tenants/{tenantId}/widgets/{widgetId} for get/put/delete
+  # ... plus /widgets/{widgetId} for get/put/delete
 components:
   schemas:
     Widget: { ... }
@@ -80,7 +78,7 @@ components:
     WidgetUpdate: { ... }
 ```
 
-Follow the shape of the existing `Kind` and `Tenant` resources.
+Follow the shape of the existing `Kind` and `Tenant` resources. The tenant is derived from the api key by middleware — never take a `tenantId` URL parameter.
 
 ## 4. Regenerate
 
@@ -99,25 +97,29 @@ package widgets
 
 type ViewModel struct { /* domain-level fields */ }
 
-func toViewModel(w dbgen.Widget) ViewModel { ... }
+func ToViewModel(w dbgen.Widget) ViewModel { ... }
 func toAPI(vm ViewModel) apigen.Widget { ... }
 
 // One block per operation: Store interface + Endpoint struct + Interact/Build/Render.
 
 type ListStore interface {
-    ListWidgets(ctx context.Context, tenantID string) ([]dbgen.Widget, error)
+    ListWidgetsByTenant(ctx context.Context, tenantID string) ([]dbgen.Widget, error)
 }
 
 type ListEndpoint struct{ Store ListStore }
 
-func (e ListEndpoint) Interact(ctx context.Context, req apigen.ListWidgetsRequestObject) ([]dbgen.Widget, error) {
-    return e.Store.ListWidgets(ctx, req.TenantId)
+func (e ListEndpoint) Interact(ctx context.Context, _ apigen.ListWidgetsRequestObject) ([]dbgen.Widget, error) {
+    tenantID, err := auth.TenantID(ctx)
+    if err != nil {
+        return nil, err
+    }
+    return e.Store.ListWidgetsByTenant(ctx, tenantID)
 }
 func (e ListEndpoint) Build(ws []dbgen.Widget) []ViewModel { ... }
 func (e ListEndpoint) Render(vms []ViewModel) apigen.ListWidgetsResponseObject { ... }
 ```
 
-Repeat for Get, Create, Update, Delete. Each endpoint declares its own narrow Store interface.
+Repeat for Get, Create, Update, Delete. Each endpoint declares its own narrow Store interface, and pulls the current tenant from context via `auth.TenantID(ctx)`. Export `ToViewModel` (capital T) so MCP tools can reuse it — see @docs/architecture.md.
 
 ## 6. Wire into the composed server
 

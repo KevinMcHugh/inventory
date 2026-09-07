@@ -10,7 +10,7 @@
                      ┌────────────▼────────────┐
                      │   chi router  :8080     │
                      ├─────────────────────────┤
-                     │  /tenants /kinds /...   │◀── oapi-codegen strict server
+                     │  /tenant  /kinds /...   │◀── oapi-codegen strict server
                      │  /mcp                   │◀── modelcontextprotocol/go-sdk
                      └────────────┬────────────┘
                                   │

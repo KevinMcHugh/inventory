@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/KevinMcHugh/inventory/internal/auth"
@@ -16,21 +15,15 @@ import (
 // Auth returns middleware that resolves an Authorization: Bearer <key> header
 // to a tenant and stores it on the request context.
 //
-// Unauthenticated (skipAuth) prefixes are passed through untouched — currently
-// just /health and /mcp discovery. Everything else 401s if the token is
-// missing or unknown.
-//
-// On matched routes with a {tenantId} URL parameter, the value is compared to
-// the authenticated tenant and a mismatch returns 403.
+// Paths in skipAuth are passed through untouched — currently just /health.
+// Everything else 401s if the token is missing or unknown.
 func Auth(q dbgen.Querier) func(http.Handler) http.Handler {
-	skipAuth := []string{"/health"}
+	skipAuth := map[string]bool{"/health": true}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			for _, p := range skipAuth {
-				if r.URL.Path == p {
-					next.ServeHTTP(w, r)
-					return
-				}
+			if skipAuth[r.URL.Path] {
+				next.ServeHTTP(w, r)
+				return
 			}
 
 			token, err := bearerFromHeader(r.Header.Get("Authorization"))
@@ -46,11 +39,6 @@ func Auth(q dbgen.Querier) func(http.Handler) http.Handler {
 					return
 				}
 				http.Error(w, "auth lookup failed", http.StatusInternalServerError)
-				return
-			}
-
-			if urlTenant := chi.URLParam(r, "tenantId"); urlTenant != "" && urlTenant != row.TenantID {
-				http.Error(w, "tenant mismatch", http.StatusForbidden)
 				return
 			}
 
