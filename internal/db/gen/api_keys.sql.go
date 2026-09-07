@@ -43,6 +43,39 @@ func (q *Queries) CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (Api
 	return i, err
 }
 
+const deleteAPIKey = `-- name: DeleteAPIKey :exec
+UPDATE api_keys
+SET deleted_at = NOW(),
+    updated_at = NOW()
+WHERE id = $1 AND deleted_at IS NULL
+`
+
+func (q *Queries) DeleteAPIKey(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, deleteAPIKey, id)
+	return err
+}
+
+const getAPIKey = `-- name: GetAPIKey :one
+SELECT id, tenant_id, name, key_hash, last_used_at, created_at, updated_at, deleted_at FROM api_keys
+WHERE id = $1 AND deleted_at IS NULL
+`
+
+func (q *Queries) GetAPIKey(ctx context.Context, id string) (ApiKey, error) {
+	row := q.db.QueryRow(ctx, getAPIKey, id)
+	var i ApiKey
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.Name,
+		&i.KeyHash,
+		&i.LastUsedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const getAPIKeyByHash = `-- name: GetAPIKeyByHash :one
 SELECT id, tenant_id, name, key_hash, last_used_at, created_at, updated_at, deleted_at FROM api_keys
 WHERE key_hash = $1 AND deleted_at IS NULL
@@ -62,6 +95,41 @@ func (q *Queries) GetAPIKeyByHash(ctx context.Context, keyHash string) (ApiKey, 
 		&i.DeletedAt,
 	)
 	return i, err
+}
+
+const listAPIKeysByTenant = `-- name: ListAPIKeysByTenant :many
+SELECT id, tenant_id, name, key_hash, last_used_at, created_at, updated_at, deleted_at FROM api_keys
+WHERE tenant_id = $1 AND deleted_at IS NULL
+ORDER BY created_at DESC
+`
+
+func (q *Queries) ListAPIKeysByTenant(ctx context.Context, tenantID string) ([]ApiKey, error) {
+	rows, err := q.db.Query(ctx, listAPIKeysByTenant, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ApiKey{}
+	for rows.Next() {
+		var i ApiKey
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.Name,
+			&i.KeyHash,
+			&i.LastUsedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const touchAPIKey = `-- name: TouchAPIKey :exec

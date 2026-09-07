@@ -103,7 +103,8 @@ Under the hood: `internal/server/middleware/auth.go` parses the bearer token, SH
 Notes:
 
 - Keys are never stored in plaintext. `key_hash` is the only column with the secret material.
-- The bearer prefix is `inv_`. Rotation is a matter of inserting a new row and soft-deleting the old one (a `rotate` subcommand can land later).
+- The bearer prefix is `inv_`. Rotate a key with `./server keys rotate --key-id <xid>` (or `make keys-rotate KEY_ID=…`) — the old key stops working immediately, the new raw key is printed once.
+- List active keys per tenant with `./server keys list --tenant <xid>` and mint additional keys with `./server keys create --tenant <xid> --name <label>`.
 - REST routes with a `{tenantId}` path segment additionally require that segment to match the authenticated tenant, or the middleware returns 403.
 - `/health` is the only unauthenticated endpoint.
 

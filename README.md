@@ -56,12 +56,15 @@ web/                    Vite + React + TypeScript UI
 
 | target         | what it does                                                  |
 | -------------- | ------------------------------------------------------------- |
-| `make dev`               | migrate, then run API + web dev server together               |
-| `make bootstrap NAME=…`  | create a tenant and its first api key (prints raw key once)   |
-| `make generate`          | regenerate sqlc + oapi-codegen (after any spec or SQL change) |
-| `make migrate`           | `dbmate up`                                                   |
-| `make run`               | just the API server                                           |
-| `make build`             | compile the API binary to `bin/server`                        |
+| `make dev`                             | migrate, then run API + web dev server together                     |
+| `make bootstrap NAME=…`                | create a tenant and its first api key (prints raw key once)         |
+| `make keys-list TENANT=…`              | list active api keys for a tenant                                   |
+| `make keys-create TENANT=… NAME=…`     | mint an additional api key                                          |
+| `make keys-rotate KEY_ID=…`            | soft-delete a key and mint a replacement with the same label        |
+| `make generate`                        | regenerate sqlc + oapi-codegen (after any spec or SQL change)       |
+| `make migrate`                         | `dbmate up`                                                         |
+| `make run`                             | just the API server                                                 |
+| `make build`                           | compile the API binary to `bin/server`                              |
 
 ## Deploy target
 

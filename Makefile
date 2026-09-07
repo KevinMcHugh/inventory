@@ -1,4 +1,4 @@
-.PHONY: dev generate migrate bootstrap run build help
+.PHONY: dev generate migrate bootstrap keys-list keys-create keys-rotate run build help
 
 dev: migrate ## Migrate, then start the API and web dev server together
 	@echo ">> API on :8080, web on :5173 (Ctrl+C to stop both)"
@@ -17,6 +17,18 @@ migrate: ## Apply pending dbmate migrations (requires DATABASE_URL)
 bootstrap: ## Create a tenant and its first api key (usage: make bootstrap NAME="Kev")
 	@if [ -z "$(NAME)" ]; then echo "usage: make bootstrap NAME=<tenant name>"; exit 1; fi
 	go run ./cmd/server bootstrap --tenant "$(NAME)"
+
+keys-list: ## List active api keys for a tenant (usage: make keys-list TENANT=<id>)
+	@if [ -z "$(TENANT)" ]; then echo "usage: make keys-list TENANT=<tenant id>"; exit 1; fi
+	go run ./cmd/server keys list --tenant "$(TENANT)"
+
+keys-create: ## Mint a new api key for a tenant (usage: make keys-create TENANT=<id> NAME=<label>)
+	@if [ -z "$(TENANT)" ] || [ -z "$(NAME)" ]; then echo "usage: make keys-create TENANT=<id> NAME=<label>"; exit 1; fi
+	go run ./cmd/server keys create --tenant "$(TENANT)" --name "$(NAME)"
+
+keys-rotate: ## Rotate an api key by id (usage: make keys-rotate KEY_ID=<id>)
+	@if [ -z "$(KEY_ID)" ]; then echo "usage: make keys-rotate KEY_ID=<key id>"; exit 1; fi
+	go run ./cmd/server keys rotate --key-id "$(KEY_ID)"
 
 run: ## Run just the API server (no web, no migrations)
 	go run ./cmd/server

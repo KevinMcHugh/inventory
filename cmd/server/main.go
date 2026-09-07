@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"text/tabwriter"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
@@ -24,31 +25,39 @@ import (
 )
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "bootstrap" {
-		if err := runBootstrap(os.Args[2:]); err != nil {
-			slog.Error("bootstrap failed", "err", err)
-			os.Exit(1)
-		}
-		return
+	var err error
+	switch cmd := firstArg(); cmd {
+	case "", "serve":
+		err = runServer()
+	case "bootstrap":
+		err = runBootstrap(os.Args[2:])
+	case "keys":
+		err = runKeys(os.Args[2:])
+	default:
+		err = fmt.Errorf("unknown command %q; use one of: serve, bootstrap, keys", cmd)
 	}
-
-	if err := runServer(); err != nil {
-		slog.Error("server exited", "err", err)
+	if err != nil {
+		slog.Error("command failed", "err", err)
 		os.Exit(1)
 	}
 }
 
+func firstArg() string {
+	if len(os.Args) < 2 {
+		return ""
+	}
+	return os.Args[1]
+}
+
+// -----------------------------------------------------------------------------
+// serve
+// -----------------------------------------------------------------------------
+
 func runServer() error {
 	ctx := context.Background()
-
-	dsn := os.Getenv("DATABASE_URL")
-	if dsn == "" {
-		return errors.New("DATABASE_URL required")
-	}
-
-	pool, err := pgxpool.New(ctx, dsn)
+	pool, err := openPool(ctx)
 	if err != nil {
-		return fmt.Errorf("pgxpool.New: %w", err)
+		return err
 	}
 	defer pool.Close()
 
@@ -82,6 +91,10 @@ func runServer() error {
 	return http.ListenAndServe(":"+port, r)
 }
 
+// -----------------------------------------------------------------------------
+// bootstrap
+// -----------------------------------------------------------------------------
+
 // runBootstrap creates a tenant and its first api key, printing the raw key
 // exactly once. This is the only way to create a new tenant.
 func runBootstrap(args []string) error {
@@ -96,11 +109,7 @@ func runBootstrap(args []string) error {
 	}
 
 	ctx := context.Background()
-	dsn := os.Getenv("DATABASE_URL")
-	if dsn == "" {
-		return errors.New("DATABASE_URL required")
-	}
-	pool, err := pgxpool.New(ctx, dsn)
+	pool, err := openPool(ctx)
 	if err != nil {
 		return err
 	}
@@ -116,22 +125,169 @@ func runBootstrap(args []string) error {
 		return fmt.Errorf("create tenant: %w", err)
 	}
 
-	rawKey, err := auth.GenerateKey()
+	raw, err := mintKey(ctx, q, tenant.ID, *keyName)
 	if err != nil {
 		return err
 	}
-	if _, err := q.CreateAPIKey(ctx, dbgen.CreateAPIKeyParams{
-		ID:       xid.New().String(),
-		TenantID: tenant.ID,
-		Name:     *keyName,
-		KeyHash:  auth.Hash(rawKey),
-	}); err != nil {
-		return fmt.Errorf("create api key: %w", err)
-	}
 
 	fmt.Printf("tenant_id: %s\n", tenant.ID)
-	fmt.Printf("api_key:   %s\n", rawKey)
-	fmt.Println()
-	fmt.Println("Save the key now — it will never be shown again.")
+	printKey(raw)
 	return nil
+}
+
+// -----------------------------------------------------------------------------
+// keys
+// -----------------------------------------------------------------------------
+
+func runKeys(args []string) error {
+	if len(args) == 0 {
+		return errors.New("usage: keys <list|create|rotate> ...")
+	}
+	switch args[0] {
+	case "list":
+		return runKeysList(args[1:])
+	case "create":
+		return runKeysCreate(args[1:])
+	case "rotate":
+		return runKeysRotate(args[1:])
+	default:
+		return fmt.Errorf("unknown keys subcommand %q", args[0])
+	}
+}
+
+func runKeysList(args []string) error {
+	fs := flag.NewFlagSet("keys list", flag.ExitOnError)
+	tenantID := fs.String("tenant", "", "tenant xid (required)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *tenantID == "" {
+		return errors.New("--tenant is required")
+	}
+
+	ctx := context.Background()
+	pool, err := openPool(ctx)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	q := dbgen.New(pool)
+	rows, err := q.ListAPIKeysByTenant(ctx, *tenantID)
+	if err != nil {
+		return err
+	}
+
+	tw := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(tw, "ID\tNAME\tCREATED\tLAST USED")
+	for _, r := range rows {
+		last := "-"
+		if r.LastUsedAt.Valid {
+			last = r.LastUsedAt.Time.Format("2006-01-02 15:04:05Z")
+		}
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
+			r.ID, r.Name,
+			r.CreatedAt.Time.Format("2006-01-02 15:04:05Z"),
+			last,
+		)
+	}
+	return tw.Flush()
+}
+
+func runKeysCreate(args []string) error {
+	fs := flag.NewFlagSet("keys create", flag.ExitOnError)
+	tenantID := fs.String("tenant", "", "tenant xid (required)")
+	keyName := fs.String("name", "", "label for the created api key (required)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *tenantID == "" || *keyName == "" {
+		return errors.New("--tenant and --name are required")
+	}
+
+	ctx := context.Background()
+	pool, err := openPool(ctx)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	raw, err := mintKey(ctx, dbgen.New(pool), *tenantID, *keyName)
+	if err != nil {
+		return err
+	}
+	printKey(raw)
+	return nil
+}
+
+// runKeysRotate soft-deletes an existing key and mints a replacement under the
+// same tenant, carrying its label forward. The old key stops working
+// immediately; the new raw key is printed once.
+func runKeysRotate(args []string) error {
+	fs := flag.NewFlagSet("keys rotate", flag.ExitOnError)
+	keyID := fs.String("key-id", "", "api key xid to rotate (required)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *keyID == "" {
+		return errors.New("--key-id is required")
+	}
+
+	ctx := context.Background()
+	pool, err := openPool(ctx)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	q := dbgen.New(pool)
+	old, err := q.GetAPIKey(ctx, *keyID)
+	if err != nil {
+		return fmt.Errorf("look up key: %w", err)
+	}
+
+	if err := q.DeleteAPIKey(ctx, old.ID); err != nil {
+		return fmt.Errorf("delete old key: %w", err)
+	}
+
+	raw, err := mintKey(ctx, q, old.TenantID, old.Name)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("rotated key %s (tenant %s, name %q)\n", old.ID, old.TenantID, old.Name)
+	printKey(raw)
+	return nil
+}
+
+// -----------------------------------------------------------------------------
+// helpers
+// -----------------------------------------------------------------------------
+
+func openPool(ctx context.Context) (*pgxpool.Pool, error) {
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		return nil, errors.New("DATABASE_URL required")
+	}
+	return pgxpool.New(ctx, dsn)
+}
+
+func mintKey(ctx context.Context, q dbgen.Querier, tenantID, name string) (string, error) {
+	raw, err := auth.GenerateKey()
+	if err != nil {
+		return "", err
+	}
+	if _, err := q.CreateAPIKey(ctx, dbgen.CreateAPIKeyParams{
+		ID:       xid.New().String(),
+		TenantID: tenantID,
+		Name:     name,
+		KeyHash:  auth.Hash(raw),
+	}); err != nil {
+		return "", fmt.Errorf("create api key: %w", err)
+	}
+	return raw, nil
+}
+
+func printKey(raw string) {
+	fmt.Printf("api_key:   %s\n\n", raw)
+	fmt.Println("Save the key now — it will never be shown again.")
 }

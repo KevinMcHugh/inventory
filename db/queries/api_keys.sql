@@ -11,3 +11,18 @@ WHERE key_hash = $1 AND deleted_at IS NULL;
 UPDATE api_keys
 SET last_used_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL;
+
+-- name: GetAPIKey :one
+SELECT * FROM api_keys
+WHERE id = $1 AND deleted_at IS NULL;
+
+-- name: ListAPIKeysByTenant :many
+SELECT * FROM api_keys
+WHERE tenant_id = $1 AND deleted_at IS NULL
+ORDER BY created_at DESC;
+
+-- name: DeleteAPIKey :exec
+UPDATE api_keys
+SET deleted_at = NOW(),
+    updated_at = NOW()
+WHERE id = $1 AND deleted_at IS NULL;
