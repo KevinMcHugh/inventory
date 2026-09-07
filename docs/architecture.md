@@ -99,9 +99,15 @@ type ListEndpoint struct{ Store ListStore }
 1. Claude opens a streamable HTTP session at `/mcp`.
 2. Tool calls arrive with typed JSON matching the tool's Input struct.
 3. The registered handler runs the SDK's decode → invoke → encode sequence.
-4. The handler calls `dbgen.Querier` directly and returns a typed Output struct.
+4. The handler calls `dbgen.Querier` directly and shares the endpoint packages' `ToViewModel` helpers for the domain→view conversion.
 
-MCP does not currently use the Endpoint interface (tools have their own shape), but it uses the same `dbgen.Querier` so both surfaces see the same rows.
+MCP tools do not use the Endpoint interface itself (a tool's request/response shape is fundamentally different — no chi routing, no `*RequestObject`). What they *do* share is:
+
+- the same `dbgen.Querier` — one truth for what postgres holds
+- the same `internal/auth` context helpers — one truth for who the caller is
+- the same `tenants.ViewModel` / `kinds.ViewModel` / `kinds.VersionViewModel` / `models.ViewModel` types and their exported `ToViewModel` converters — one truth for the domain shape
+
+The Endpoint's `Render` step is the only per-surface piece: HTTP wraps the ViewModel in an `apigen.*ResponseObject`, MCP wraps it in a tool Output struct. Everything below that is shared.
 
 ## Code generation boundaries
 

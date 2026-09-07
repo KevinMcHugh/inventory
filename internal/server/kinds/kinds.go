@@ -17,12 +17,12 @@ import (
 // -----------------------------------------------------------------------------
 
 type ViewModel struct {
-	ID          string
-	TenantID    string
-	Name        string
-	Description *string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID          string    `json:"id"`
+	TenantID    string    `json:"tenantId"`
+	Name        string    `json:"name"`
+	Description *string   `json:"description,omitempty"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 func ToViewModel(k dbgen.Kind) ViewModel {
@@ -192,11 +192,11 @@ func (e DeleteEndpoint) Render(_ bool) apigen.DeleteKindResponseObject {
 // -----------------------------------------------------------------------------
 
 type VersionViewModel struct {
-	ID        string
-	KindID    string
-	Schema    map[string]any
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID        string         `json:"id"`
+	KindID    string         `json:"kindId"`
+	Schema    map[string]any `json:"schema"`
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
 }
 
 func ToVersionViewModel(v dbgen.KindVersion) VersionViewModel {

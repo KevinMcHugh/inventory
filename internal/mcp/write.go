@@ -9,6 +9,8 @@ import (
 
 	"github.com/KevinMcHugh/inventory/internal/auth"
 	dbgen "github.com/KevinMcHugh/inventory/internal/db/gen"
+	"github.com/KevinMcHugh/inventory/internal/server/kinds"
+	"github.com/KevinMcHugh/inventory/internal/server/models"
 )
 
 // -----------------------------------------------------------------------------
@@ -21,7 +23,7 @@ type CreateKindInput struct {
 }
 
 type CreateKindOutput struct {
-	Kind KindView `json:"kind"`
+	Kind kinds.ViewModel `json:"kind"`
 }
 
 type CreateKindVersionInput struct {
@@ -30,7 +32,7 @@ type CreateKindVersionInput struct {
 }
 
 type CreateKindVersionOutput struct {
-	Version KindVersionView `json:"version"`
+	Version kinds.VersionViewModel `json:"version"`
 }
 
 type CreateModelInput struct {
@@ -41,7 +43,7 @@ type CreateModelInput struct {
 }
 
 type CreateModelOutput struct {
-	Model ModelView `json:"model"`
+	Model models.ViewModel `json:"model"`
 }
 
 type UpdateModelInput struct {
@@ -52,7 +54,7 @@ type UpdateModelInput struct {
 }
 
 type UpdateModelOutput struct {
-	Model ModelView `json:"model"`
+	Model models.ViewModel `json:"model"`
 }
 
 type DeleteModelInput struct {
@@ -86,7 +88,7 @@ func registerWriteTools(s *mcpsdk.Server, q dbgen.Querier) {
 		if err != nil {
 			return nil, CreateKindOutput{}, err
 		}
-		return nil, CreateKindOutput{Kind: toKindView(k)}, nil
+		return nil, CreateKindOutput{Kind: kinds.ToViewModel(k)}, nil
 	})
 
 	mcpsdk.AddTool(s, &mcpsdk.Tool{
@@ -105,7 +107,7 @@ func registerWriteTools(s *mcpsdk.Server, q dbgen.Querier) {
 		if err != nil {
 			return nil, CreateKindVersionOutput{}, err
 		}
-		return nil, CreateKindVersionOutput{Version: toKindVersionView(v)}, nil
+		return nil, CreateKindVersionOutput{Version: kinds.ToVersionViewModel(v)}, nil
 	})
 
 	mcpsdk.AddTool(s, &mcpsdk.Tool{
@@ -135,7 +137,7 @@ func registerWriteTools(s *mcpsdk.Server, q dbgen.Querier) {
 		if err != nil {
 			return nil, CreateModelOutput{}, err
 		}
-		return nil, CreateModelOutput{Model: toModelView(m)}, nil
+		return nil, CreateModelOutput{Model: models.ToViewModel(m)}, nil
 	})
 
 	mcpsdk.AddTool(s, &mcpsdk.Tool{
@@ -164,7 +166,7 @@ func registerWriteTools(s *mcpsdk.Server, q dbgen.Querier) {
 		if err != nil {
 			return nil, UpdateModelOutput{}, err
 		}
-		return nil, UpdateModelOutput{Model: toModelView(m)}, nil
+		return nil, UpdateModelOutput{Model: models.ToViewModel(m)}, nil
 	})
 
 	mcpsdk.AddTool(s, &mcpsdk.Tool{

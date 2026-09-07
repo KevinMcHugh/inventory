@@ -23,11 +23,15 @@ Running one server means MCP and REST share the same pgx pool, tenant model, and
 
 ## Where things live
 
-- `internal/mcp/mcp.go` — server construction, shared `View` types, view converters.
-- `internal/mcp/read.go` — read-only tools (list, get).
+- `internal/mcp/mcp.go` — server construction only. Delegates tool registration to `read.go` and `write.go`.
+- `internal/mcp/read.go` — read-only tools (list, get, whoami).
 - `internal/mcp/write.go` — mutating tools (create, update, delete).
 
 The split is by mutation semantics, not resource. A future auth layer can gate `write.go` more tightly than `read.go`.
+
+### Shared view types
+
+MCP does not maintain a parallel view layer. Tool Output structs embed the endpoint packages' view-model types directly — `tenants.ViewModel`, `kinds.ViewModel`, `kinds.VersionViewModel`, `models.ViewModel` — and use the exported `ToViewModel` / `ToVersionViewModel` converters. Add a new field to a view-model in `internal/server/<resource>/` and it appears in MCP responses on the next request; there is no second place to update.
 
 ## Tool contract
 

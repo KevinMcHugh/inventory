@@ -17,14 +17,14 @@ import (
 // -----------------------------------------------------------------------------
 
 type ViewModel struct {
-	ID            string
-	TenantID      string
-	KindID        string
-	KindVersionID string
-	Slug          string
-	Body          map[string]any
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID            string         `json:"id"`
+	TenantID      string         `json:"tenantId"`
+	KindID        string         `json:"kindId"`
+	KindVersionID string         `json:"kindVersionId"`
+	Slug          string         `json:"slug"`
+	Body          map[string]any `json:"body"`
+	CreatedAt     time.Time      `json:"createdAt"`
+	UpdatedAt     time.Time      `json:"updatedAt"`
 }
 
 func ToViewModel(m dbgen.Model) ViewModel {

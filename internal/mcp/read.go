@@ -7,6 +7,9 @@ import (
 
 	"github.com/KevinMcHugh/inventory/internal/auth"
 	dbgen "github.com/KevinMcHugh/inventory/internal/db/gen"
+	"github.com/KevinMcHugh/inventory/internal/server/kinds"
+	"github.com/KevinMcHugh/inventory/internal/server/models"
+	"github.com/KevinMcHugh/inventory/internal/server/tenants"
 )
 
 // -----------------------------------------------------------------------------
@@ -16,13 +19,13 @@ import (
 type WhoamiInput struct{}
 
 type WhoamiOutput struct {
-	Tenant TenantView `json:"tenant"`
+	Tenant tenants.ViewModel `json:"tenant"`
 }
 
 type ListKindsInput struct{}
 
 type ListKindsOutput struct {
-	Kinds []KindView `json:"kinds"`
+	Kinds []kinds.ViewModel `json:"kinds"`
 }
 
 type ListKindVersionsInput struct {
@@ -30,7 +33,7 @@ type ListKindVersionsInput struct {
 }
 
 type ListKindVersionsOutput struct {
-	Versions []KindVersionView `json:"versions"`
+	Versions []kinds.VersionViewModel `json:"versions"`
 }
 
 type ListModelsInput struct {
@@ -38,7 +41,7 @@ type ListModelsInput struct {
 }
 
 type ListModelsOutput struct {
-	Models []ModelView `json:"models"`
+	Models []models.ViewModel `json:"models"`
 }
 
 type GetModelInput struct {
@@ -47,7 +50,7 @@ type GetModelInput struct {
 }
 
 type GetModelOutput struct {
-	Model ModelView `json:"model"`
+	Model models.ViewModel `json:"model"`
 }
 
 // -----------------------------------------------------------------------------
@@ -67,7 +70,7 @@ func registerReadTools(s *mcpsdk.Server, q dbgen.Querier) {
 		if err != nil {
 			return nil, WhoamiOutput{}, err
 		}
-		return nil, WhoamiOutput{Tenant: toTenantView(t)}, nil
+		return nil, WhoamiOutput{Tenant: tenants.ToViewModel(t)}, nil
 	})
 
 	mcpsdk.AddTool(s, &mcpsdk.Tool{
@@ -82,9 +85,9 @@ func registerReadTools(s *mcpsdk.Server, q dbgen.Querier) {
 		if err != nil {
 			return nil, ListKindsOutput{}, err
 		}
-		out := ListKindsOutput{Kinds: make([]KindView, len(ks))}
+		out := ListKindsOutput{Kinds: make([]kinds.ViewModel, len(ks))}
 		for i, k := range ks {
-			out.Kinds[i] = toKindView(k)
+			out.Kinds[i] = kinds.ToViewModel(k)
 		}
 		return nil, out, nil
 	})
@@ -97,9 +100,9 @@ func registerReadTools(s *mcpsdk.Server, q dbgen.Querier) {
 		if err != nil {
 			return nil, ListKindVersionsOutput{}, err
 		}
-		out := ListKindVersionsOutput{Versions: make([]KindVersionView, len(vs))}
+		out := ListKindVersionsOutput{Versions: make([]kinds.VersionViewModel, len(vs))}
 		for i, v := range vs {
-			out.Versions[i] = toKindVersionView(v)
+			out.Versions[i] = kinds.ToVersionViewModel(v)
 		}
 		return nil, out, nil
 	})
@@ -119,9 +122,9 @@ func registerReadTools(s *mcpsdk.Server, q dbgen.Querier) {
 		if err != nil {
 			return nil, ListModelsOutput{}, err
 		}
-		out := ListModelsOutput{Models: make([]ModelView, len(ms))}
+		out := ListModelsOutput{Models: make([]models.ViewModel, len(ms))}
 		for i, m := range ms {
-			out.Models[i] = toModelView(m)
+			out.Models[i] = models.ToViewModel(m)
 		}
 		return nil, out, nil
 	})
@@ -142,6 +145,6 @@ func registerReadTools(s *mcpsdk.Server, q dbgen.Querier) {
 		if err != nil {
 			return nil, GetModelOutput{}, err
 		}
-		return nil, GetModelOutput{Model: toModelView(m)}, nil
+		return nil, GetModelOutput{Model: models.ToViewModel(m)}, nil
 	})
 }

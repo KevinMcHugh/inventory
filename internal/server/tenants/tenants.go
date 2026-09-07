@@ -10,11 +10,12 @@ import (
 )
 
 // ViewModel is the presentation form of a tenant.
+// JSON tags mirror the API shape so MCP tools can serialize it directly.
 type ViewModel struct {
-	ID        string
-	Name      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 func ToViewModel(t dbgen.Tenant) ViewModel {
