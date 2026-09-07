@@ -8,6 +8,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type ApiKey struct {
+	ID         string             `json:"id"`
+	TenantID   string             `json:"tenant_id"`
+	Name       string             `json:"name"`
+	KeyHash    string             `json:"key_hash"`
+	LastUsedAt pgtype.Timestamptz `json:"last_used_at"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt  pgtype.Timestamptz `json:"deleted_at"`
+}
+
 type Kind struct {
 	ID          string             `json:"id"`
 	TenantID    string             `json:"tenant_id"`

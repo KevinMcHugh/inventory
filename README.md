@@ -23,6 +23,12 @@ make dev
 
 `make dev` runs migrations, then starts the API on `:8080` and the Vite dev server on `:5173`. Ctrl+C stops both.
 
+Everything except `/health` requires `Authorization: Bearer <key>`. Mint the first tenant + key with:
+
+```sh
+make bootstrap NAME="Kev"
+```
+
 MCP is mounted at `http://localhost:8080/mcp`. REST is at `http://localhost:8080/tenants/...`.
 
 ## Repo layout
@@ -50,11 +56,12 @@ web/                    Vite + React + TypeScript UI
 
 | target         | what it does                                                  |
 | -------------- | ------------------------------------------------------------- |
-| `make dev`     | migrate, then run API + web dev server together               |
-| `make generate`| regenerate sqlc + oapi-codegen (after any spec or SQL change) |
-| `make migrate` | `dbmate up`                                                   |
-| `make run`     | just the API server                                           |
-| `make build`   | compile the API binary to `bin/server`                        |
+| `make dev`               | migrate, then run API + web dev server together               |
+| `make bootstrap NAME=…`  | create a tenant and its first api key (prints raw key once)   |
+| `make generate`          | regenerate sqlc + oapi-codegen (after any spec or SQL change) |
+| `make migrate`           | `dbmate up`                                                   |
+| `make run`               | just the API server                                           |
+| `make build`             | compile the API binary to `bin/server`                        |
 
 ## Deploy target
 

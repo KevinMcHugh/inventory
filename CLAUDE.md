@@ -41,6 +41,12 @@ See @docs/adding-a-resource.md for the full walkthrough. Skeleton:
 
 Mounted at `/mcp` inside the same chi router as the REST API. Tools live in `internal/mcp/read.go` and `write.go`; shared view types in `mcp.go`. See @docs/mcp.md.
 
+## Auth
+
+Every route except `/health` requires `Authorization: Bearer <key>`. `internal/server/middleware/auth.go` resolves the key to a tenant and injects it into `context.Context` via `internal/auth`. MCP tools read the tenant with `auth.TenantID(ctx)` — never take `tenantId` as a tool argument. REST routes with `{tenantId}` in the URL must match the auth tenant or the middleware returns 403.
+
+Tenant + key creation is admin-only via `./server bootstrap --tenant NAME` (or `make bootstrap NAME=X`). Do not add MCP or REST endpoints that create tenants.
+
 ## Migrations
 
 `db/migrations/YYYYMMDDHHMMSS_description.sql` in dbmate format (`-- migrate:up` / `-- migrate:down`). Create with `dbmate new <name>`. Never edit an applied migration in place — add a new one.

@@ -7,6 +7,7 @@ import (
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/rs/xid"
 
+	"github.com/kevinmchugh/inventory/internal/auth"
 	dbgen "github.com/kevinmchugh/inventory/internal/db/gen"
 )
 
@@ -14,17 +15,8 @@ import (
 // Input / Output types
 // -----------------------------------------------------------------------------
 
-type CreateTenantInput struct {
-	Name string `json:"name" jsonschema:"tenant display name"`
-}
-
-type CreateTenantOutput struct {
-	Tenant TenantView `json:"tenant"`
-}
-
 type CreateKindInput struct {
-	TenantID    string  `json:"tenantId" jsonschema:"tenant xid"`
-	Name        string  `json:"name" jsonschema:"kind name (e.g. \"meal\", \"garment\")"`
+	Name        string  `json:"name" jsonschema:"kind name (e.g. meal, garment)"`
 	Description *string `json:"description,omitempty" jsonschema:"optional description"`
 }
 
@@ -34,7 +26,7 @@ type CreateKindOutput struct {
 
 type CreateKindVersionInput struct {
 	KindID string         `json:"kindId" jsonschema:"kind xid"`
-	Schema map[string]any `json:"schema" jsonschema:"JSON schema describing the body of models of this kind"`
+	Schema map[string]any `json:"schema" jsonschema:"JSON schema for models of this kind"`
 }
 
 type CreateKindVersionOutput struct {
@@ -42,10 +34,9 @@ type CreateKindVersionOutput struct {
 }
 
 type CreateModelInput struct {
-	TenantID      string         `json:"tenantId" jsonschema:"tenant xid"`
 	KindID        string         `json:"kindId" jsonschema:"kind xid"`
-	Slug          string         `json:"slug" jsonschema:"URL-safe slug unique within (tenant, kind)"`
-	Body          map[string]any `json:"body" jsonschema:"the model payload — must conform to the resolved KindVersion schema"`
+	Slug          string         `json:"slug" jsonschema:"URL-safe slug unique within kind"`
+	Body          map[string]any `json:"body" jsonschema:"the model payload"`
 	KindVersionID *string        `json:"kindVersionId,omitempty" jsonschema:"pin to a specific KindVersion; omitted means latest"`
 }
 
@@ -54,8 +45,7 @@ type CreateModelOutput struct {
 }
 
 type UpdateModelInput struct {
-	TenantID      string         `json:"tenantId" jsonschema:"tenant xid"`
-	KindID        string         `json:"kindId" jsonschema:"kind xid"`
+	KindID        string         `json:"kindId"`
 	Slug          string         `json:"slug"`
 	Body          map[string]any `json:"body"`
 	KindVersionID *string        `json:"kindVersionId,omitempty" jsonschema:"pin to a specific KindVersion; omitted means latest"`
@@ -66,9 +56,8 @@ type UpdateModelOutput struct {
 }
 
 type DeleteModelInput struct {
-	TenantID string `json:"tenantId"`
-	KindID   string `json:"kindId"`
-	Slug     string `json:"slug"`
+	KindID string `json:"kindId"`
+	Slug   string `json:"slug"`
 }
 
 type DeleteModelOutput struct {
@@ -81,26 +70,16 @@ type DeleteModelOutput struct {
 
 func registerWriteTools(s *mcpsdk.Server, q dbgen.Querier) {
 	mcpsdk.AddTool(s, &mcpsdk.Tool{
-		Name:        "create_tenant",
-		Description: "Create a new tenant.",
-	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, in CreateTenantInput) (*mcpsdk.CallToolResult, CreateTenantOutput, error) {
-		t, err := q.CreateTenant(ctx, dbgen.CreateTenantParams{
-			ID:   xid.New().String(),
-			Name: in.Name,
-		})
-		if err != nil {
-			return nil, CreateTenantOutput{}, err
-		}
-		return nil, CreateTenantOutput{Tenant: toTenantView(t)}, nil
-	})
-
-	mcpsdk.AddTool(s, &mcpsdk.Tool{
 		Name:        "create_kind",
-		Description: "Create a new kind (data type) under a tenant.",
+		Description: "Create a new kind (data type) under the current tenant.",
 	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, in CreateKindInput) (*mcpsdk.CallToolResult, CreateKindOutput, error) {
+		tenantID, err := auth.TenantID(ctx)
+		if err != nil {
+			return nil, CreateKindOutput{}, err
+		}
 		k, err := q.CreateKind(ctx, dbgen.CreateKindParams{
 			ID:          xid.New().String(),
-			TenantID:    in.TenantID,
+			TenantID:    tenantID,
 			Name:        in.Name,
 			Description: in.Description,
 		})
@@ -133,6 +112,10 @@ func registerWriteTools(s *mcpsdk.Server, q dbgen.Querier) {
 		Name:        "create_model",
 		Description: "Store a new model. If kindVersionId is omitted, the latest version of the kind is used.",
 	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, in CreateModelInput) (*mcpsdk.CallToolResult, CreateModelOutput, error) {
+		tenantID, err := auth.TenantID(ctx)
+		if err != nil {
+			return nil, CreateModelOutput{}, err
+		}
 		versionID, err := resolveVersion(ctx, q, in.KindID, in.KindVersionID)
 		if err != nil {
 			return nil, CreateModelOutput{}, err
@@ -143,7 +126,7 @@ func registerWriteTools(s *mcpsdk.Server, q dbgen.Querier) {
 		}
 		m, err := q.CreateModel(ctx, dbgen.CreateModelParams{
 			ID:            xid.New().String(),
-			TenantID:      in.TenantID,
+			TenantID:      tenantID,
 			KindID:        in.KindID,
 			KindVersionID: versionID,
 			Slug:          in.Slug,
@@ -157,8 +140,12 @@ func registerWriteTools(s *mcpsdk.Server, q dbgen.Querier) {
 
 	mcpsdk.AddTool(s, &mcpsdk.Tool{
 		Name:        "update_model",
-		Description: "Replace a model body by tenant, kind, and slug.",
+		Description: "Replace a model body by kind and slug within the current tenant.",
 	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, in UpdateModelInput) (*mcpsdk.CallToolResult, UpdateModelOutput, error) {
+		tenantID, err := auth.TenantID(ctx)
+		if err != nil {
+			return nil, UpdateModelOutput{}, err
+		}
 		versionID, err := resolveVersion(ctx, q, in.KindID, in.KindVersionID)
 		if err != nil {
 			return nil, UpdateModelOutput{}, err
@@ -168,7 +155,7 @@ func registerWriteTools(s *mcpsdk.Server, q dbgen.Querier) {
 			return nil, UpdateModelOutput{}, err
 		}
 		m, err := q.UpdateModelBySlug(ctx, dbgen.UpdateModelBySlugParams{
-			TenantID:      in.TenantID,
+			TenantID:      tenantID,
 			KindID:        in.KindID,
 			Slug:          in.Slug,
 			Body:          bodyBytes,
@@ -182,10 +169,14 @@ func registerWriteTools(s *mcpsdk.Server, q dbgen.Querier) {
 
 	mcpsdk.AddTool(s, &mcpsdk.Tool{
 		Name:        "delete_model",
-		Description: "Soft-delete a model by tenant, kind, and slug.",
+		Description: "Soft-delete a model by kind and slug within the current tenant.",
 	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, in DeleteModelInput) (*mcpsdk.CallToolResult, DeleteModelOutput, error) {
-		err := q.DeleteModelBySlug(ctx, dbgen.DeleteModelBySlugParams{
-			TenantID: in.TenantID,
+		tenantID, err := auth.TenantID(ctx)
+		if err != nil {
+			return nil, DeleteModelOutput{}, err
+		}
+		err = q.DeleteModelBySlug(ctx, dbgen.DeleteModelBySlugParams{
+			TenantID: tenantID,
 			KindID:   in.KindID,
 			Slug:     in.Slug,
 		})

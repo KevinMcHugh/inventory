@@ -9,6 +9,7 @@ import (
 )
 
 type Querier interface {
+	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (ApiKey, error)
 	CreateKind(ctx context.Context, arg CreateKindParams) (Kind, error)
 	CreateKindVersion(ctx context.Context, arg CreateKindVersionParams) (KindVersion, error)
 	CreateModel(ctx context.Context, arg CreateModelParams) (Model, error)
@@ -16,6 +17,7 @@ type Querier interface {
 	DeleteKind(ctx context.Context, arg DeleteKindParams) error
 	DeleteModelBySlug(ctx context.Context, arg DeleteModelBySlugParams) error
 	DeleteTenant(ctx context.Context, id string) error
+	GetAPIKeyByHash(ctx context.Context, keyHash string) (ApiKey, error)
 	GetKind(ctx context.Context, arg GetKindParams) (Kind, error)
 	GetKindVersion(ctx context.Context, id string) (KindVersion, error)
 	GetLatestKindVersion(ctx context.Context, kindID string) (KindVersion, error)
@@ -26,6 +28,7 @@ type Querier interface {
 	ListKindsByTenant(ctx context.Context, tenantID string) ([]Kind, error)
 	ListModelsByKind(ctx context.Context, arg ListModelsByKindParams) ([]Model, error)
 	ListTenants(ctx context.Context) ([]Tenant, error)
+	TouchAPIKey(ctx context.Context, id string) error
 	UpdateKind(ctx context.Context, arg UpdateKindParams) (Kind, error)
 	UpdateModelBySlug(ctx context.Context, arg UpdateModelBySlugParams) (Model, error)
 	UpdateTenant(ctx context.Context, arg UpdateTenantParams) (Tenant, error)

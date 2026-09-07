@@ -53,20 +53,23 @@ The `jsonschema` tag becomes the field description Claude sees. Pointer types an
 
 ## Registered tools
 
+All tools operate within the tenant resolved from the caller's API key. `tenantId` is never a tool argument — see [Auth](#auth) below.
+
 Read (in `read.go`):
-- `list_tenants`
-- `list_kinds` — `(tenantId)`
+- `whoami` — returns the caller's tenant
+- `list_kinds`
 - `list_kind_versions` — `(kindId)`
-- `list_models` — `(tenantId, kindId)`
-- `get_model` — `(tenantId, kindId, slug)`
+- `list_models` — `(kindId)`
+- `get_model` — `(kindId, slug)`
 
 Write (in `write.go`):
-- `create_tenant` — `(name)`
-- `create_kind` — `(tenantId, name, description?)`
+- `create_kind` — `(name, description?)`
 - `create_kind_version` — `(kindId, schema)`
-- `create_model` — `(tenantId, kindId, slug, body, kindVersionId?)`
-- `update_model` — `(tenantId, kindId, slug, body, kindVersionId?)`
-- `delete_model` — `(tenantId, kindId, slug)`
+- `create_model` — `(kindId, slug, body, kindVersionId?)`
+- `update_model` — `(kindId, slug, body, kindVersionId?)`
+- `delete_model` — `(kindId, slug)`
+
+Creating a *tenant* is deliberately not an MCP tool — it is an admin operation done via `./server bootstrap` (see [Auth](#auth)).
 
 When `kindVersionId` is omitted on model create/update, the tool resolves the latest version for the kind so Claude does not need to enumerate versions first.
 
@@ -85,10 +88,23 @@ When `kindVersionId` is omitted on model create/update, the tool resolves the la
 
 ## Auth
 
-**Not yet implemented.** All requests to `/mcp` currently reach every tool with no credential check, and every tool takes `tenantId` as an explicit argument. Planned next step:
+Every request to `/mcp` (and to the REST API) requires `Authorization: Bearer <key>`.
 
-- Bearer token in `Authorization` header → looked up in an `api_keys` table → injected into `context.Context` as a resolved tenant id.
-- Tools drop the `tenantId` argument and read it from context.
-- The `getServer` callback returns a per-tenant server so Claude only ever sees its own tenant scope.
+Keys are minted by the bootstrap CLI, which is also the only way to create a new tenant:
 
-See the next commit adding auth for concrete wiring.
+```sh
+make bootstrap NAME="Kev"
+# tenant_id: c8xyz...
+# api_key:   inv_5b2q...       (save now — never shown again)
+```
+
+Under the hood: `internal/server/middleware/auth.go` parses the bearer token, SHA-256s it, looks it up in `api_keys.key_hash`, and calls `auth.WithTenant(ctx, tenantID, apiKeyID)`. The chi router's context propagates down into MCP tool handlers, so tools call `auth.TenantID(ctx)` to know who they are serving.
+
+Notes:
+
+- Keys are never stored in plaintext. `key_hash` is the only column with the secret material.
+- The bearer prefix is `inv_`. Rotation is a matter of inserting a new row and soft-deleting the old one (a `rotate` subcommand can land later).
+- REST routes with a `{tenantId}` path segment additionally require that segment to match the authenticated tenant, or the middleware returns 403.
+- `/health` is the only unauthenticated endpoint.
+
+Configuring Claude Desktop or `claude.ai/code` to reach the server: point at `http://localhost:8080/mcp` (or your deployed URL) and paste the raw key from `make bootstrap` into the connector's auth field.

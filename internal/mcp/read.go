@@ -5,6 +5,7 @@ import (
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/kevinmchugh/inventory/internal/auth"
 	dbgen "github.com/kevinmchugh/inventory/internal/db/gen"
 )
 
@@ -12,15 +13,13 @@ import (
 // Input / Output types
 // -----------------------------------------------------------------------------
 
-type ListTenantsInput struct{}
+type WhoamiInput struct{}
 
-type ListTenantsOutput struct {
-	Tenants []TenantView `json:"tenants"`
+type WhoamiOutput struct {
+	Tenant TenantView `json:"tenant"`
 }
 
-type ListKindsInput struct {
-	TenantID string `json:"tenantId" jsonschema:"tenant xid"`
-}
+type ListKindsInput struct{}
 
 type ListKindsOutput struct {
 	Kinds []KindView `json:"kinds"`
@@ -35,8 +34,7 @@ type ListKindVersionsOutput struct {
 }
 
 type ListModelsInput struct {
-	TenantID string `json:"tenantId" jsonschema:"tenant xid"`
-	KindID   string `json:"kindId" jsonschema:"kind xid"`
+	KindID string `json:"kindId" jsonschema:"kind xid"`
 }
 
 type ListModelsOutput struct {
@@ -44,9 +42,8 @@ type ListModelsOutput struct {
 }
 
 type GetModelInput struct {
-	TenantID string `json:"tenantId" jsonschema:"tenant xid"`
-	KindID   string `json:"kindId" jsonschema:"kind xid"`
-	Slug     string `json:"slug" jsonschema:"human-readable model slug"`
+	KindID string `json:"kindId" jsonschema:"kind xid"`
+	Slug   string `json:"slug" jsonschema:"human-readable model slug"`
 }
 
 type GetModelOutput struct {
@@ -59,25 +56,29 @@ type GetModelOutput struct {
 
 func registerReadTools(s *mcpsdk.Server, q dbgen.Querier) {
 	mcpsdk.AddTool(s, &mcpsdk.Tool{
-		Name:        "list_tenants",
-		Description: "List all tenants in the inventory.",
-	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, _ ListTenantsInput) (*mcpsdk.CallToolResult, ListTenantsOutput, error) {
-		ts, err := q.ListTenants(ctx)
+		Name:        "whoami",
+		Description: "Return the tenant this MCP session is authenticated as.",
+	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, _ WhoamiInput) (*mcpsdk.CallToolResult, WhoamiOutput, error) {
+		tenantID, err := auth.TenantID(ctx)
 		if err != nil {
-			return nil, ListTenantsOutput{}, err
+			return nil, WhoamiOutput{}, err
 		}
-		out := ListTenantsOutput{Tenants: make([]TenantView, len(ts))}
-		for i, t := range ts {
-			out.Tenants[i] = toTenantView(t)
+		t, err := q.GetTenant(ctx, tenantID)
+		if err != nil {
+			return nil, WhoamiOutput{}, err
 		}
-		return nil, out, nil
+		return nil, WhoamiOutput{Tenant: toTenantView(t)}, nil
 	})
 
 	mcpsdk.AddTool(s, &mcpsdk.Tool{
 		Name:        "list_kinds",
-		Description: "List all kinds (data types) for a tenant.",
-	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, in ListKindsInput) (*mcpsdk.CallToolResult, ListKindsOutput, error) {
-		ks, err := q.ListKindsByTenant(ctx, in.TenantID)
+		Description: "List all kinds (data types) for the current tenant.",
+	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, _ ListKindsInput) (*mcpsdk.CallToolResult, ListKindsOutput, error) {
+		tenantID, err := auth.TenantID(ctx)
+		if err != nil {
+			return nil, ListKindsOutput{}, err
+		}
+		ks, err := q.ListKindsByTenant(ctx, tenantID)
 		if err != nil {
 			return nil, ListKindsOutput{}, err
 		}
@@ -105,10 +106,14 @@ func registerReadTools(s *mcpsdk.Server, q dbgen.Querier) {
 
 	mcpsdk.AddTool(s, &mcpsdk.Tool{
 		Name:        "list_models",
-		Description: "List all models for a given kind.",
+		Description: "List all models for a given kind within the current tenant.",
 	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, in ListModelsInput) (*mcpsdk.CallToolResult, ListModelsOutput, error) {
+		tenantID, err := auth.TenantID(ctx)
+		if err != nil {
+			return nil, ListModelsOutput{}, err
+		}
 		ms, err := q.ListModelsByKind(ctx, dbgen.ListModelsByKindParams{
-			TenantID: in.TenantID,
+			TenantID: tenantID,
 			KindID:   in.KindID,
 		})
 		if err != nil {
@@ -123,10 +128,14 @@ func registerReadTools(s *mcpsdk.Server, q dbgen.Querier) {
 
 	mcpsdk.AddTool(s, &mcpsdk.Tool{
 		Name:        "get_model",
-		Description: "Fetch a single model by tenant, kind, and slug.",
+		Description: "Fetch a single model by kind and slug within the current tenant.",
 	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, in GetModelInput) (*mcpsdk.CallToolResult, GetModelOutput, error) {
+		tenantID, err := auth.TenantID(ctx)
+		if err != nil {
+			return nil, GetModelOutput{}, err
+		}
 		m, err := q.GetModelBySlug(ctx, dbgen.GetModelBySlugParams{
-			TenantID: in.TenantID,
+			TenantID: tenantID,
 			KindID:   in.KindID,
 			Slug:     in.Slug,
 		})
