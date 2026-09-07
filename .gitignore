@@ -1,0 +1,17 @@
+bin/
+*.exe
+*.out
+
+.env
+.env.local
+.env.*.local
+
+vendor/
+
+node_modules/
+web/dist/
+web/.vite/
+
+.DS_Store
+.idea/
+.vscode/
