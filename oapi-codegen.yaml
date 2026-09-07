@@ -1,0 +1,7 @@
+package: apigen
+output: internal/api/gen/server.gen.go
+generate:
+  chi-server: true
+  models: true
+  strict-server: true
+  embedded-spec: true
