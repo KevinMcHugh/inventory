@@ -7,6 +7,7 @@ import (
 	apigen "github.com/kevinmchugh/inventory/internal/api/gen"
 	dbgen "github.com/kevinmchugh/inventory/internal/db/gen"
 	"github.com/kevinmchugh/inventory/internal/server/kinds"
+	"github.com/kevinmchugh/inventory/internal/server/models"
 	"github.com/kevinmchugh/inventory/internal/server/tenants"
 )
 
@@ -113,26 +114,38 @@ func (s *Server) CreateKindVersion(ctx context.Context, req apigen.CreateKindVer
 }
 
 // -----------------------------------------------------------------------------
-// Models — TODO(next commit): replace stubs with real endpoints.
+// Models
 // -----------------------------------------------------------------------------
 
-func (s *Server) ListModels(context.Context, apigen.ListModelsRequestObject) (apigen.ListModelsResponseObject, error) {
-	return nil, errNotImplemented
-}
-func (s *Server) CreateModel(context.Context, apigen.CreateModelRequestObject) (apigen.CreateModelResponseObject, error) {
-	return nil, errNotImplemented
-}
-func (s *Server) GetModel(context.Context, apigen.GetModelRequestObject) (apigen.GetModelResponseObject, error) {
-	return nil, errNotImplemented
-}
-func (s *Server) UpdateModel(context.Context, apigen.UpdateModelRequestObject) (apigen.UpdateModelResponseObject, error) {
-	return nil, errNotImplemented
-}
-func (s *Server) DeleteModel(context.Context, apigen.DeleteModelRequestObject) (apigen.DeleteModelResponseObject, error) {
-	return nil, errNotImplemented
+func (s *Server) ListModels(ctx context.Context, req apigen.ListModelsRequestObject) (apigen.ListModelsResponseObject, error) {
+	return Run(ctx, models.ListEndpoint{Store: s.q}, req)
 }
 
-var errNotImplemented = errors.New("not implemented")
+func (s *Server) GetModel(ctx context.Context, req apigen.GetModelRequestObject) (apigen.GetModelResponseObject, error) {
+	resp, err := Run(ctx, models.GetEndpoint{Store: s.q}, req)
+	if IsNotFound(err) {
+		return apigen.GetModel404JSONResponse{NotFoundJSONResponse: apigen.NotFoundJSONResponse{Message: "model not found"}}, nil
+	}
+	return resp, err
+}
+
+func (s *Server) CreateModel(ctx context.Context, req apigen.CreateModelRequestObject) (apigen.CreateModelResponseObject, error) {
+	if req.Body == nil {
+		return nil, errors.New("body required")
+	}
+	return Run(ctx, models.CreateEndpoint{Store: s.q}, req)
+}
+
+func (s *Server) UpdateModel(ctx context.Context, req apigen.UpdateModelRequestObject) (apigen.UpdateModelResponseObject, error) {
+	if req.Body == nil {
+		return nil, errors.New("body required")
+	}
+	return Run(ctx, models.UpdateEndpoint{Store: s.q}, req)
+}
+
+func (s *Server) DeleteModel(ctx context.Context, req apigen.DeleteModelRequestObject) (apigen.DeleteModelResponseObject, error) {
+	return Run(ctx, models.DeleteEndpoint{Store: s.q}, req)
+}
 
 // Compile-time assertion.
 var _ apigen.StrictServerInterface = (*Server)(nil)
