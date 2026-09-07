@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 
-	apigen "github.com/kevinmchugh/inventory/internal/api/gen"
-	dbgen "github.com/kevinmchugh/inventory/internal/db/gen"
-	"github.com/kevinmchugh/inventory/internal/server/kinds"
-	"github.com/kevinmchugh/inventory/internal/server/models"
-	"github.com/kevinmchugh/inventory/internal/server/tenants"
+	apigen "github.com/KevinMcHugh/inventory/internal/api/gen"
+	dbgen "github.com/KevinMcHugh/inventory/internal/db/gen"
+	"github.com/KevinMcHugh/inventory/internal/server/kinds"
+	"github.com/KevinMcHugh/inventory/internal/server/models"
+	"github.com/KevinMcHugh/inventory/internal/server/tenants"
 )
 
 // Server implements apigen.StrictServerInterface by composing per-resource

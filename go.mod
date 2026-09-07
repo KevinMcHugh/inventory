@@ -1,4 +1,4 @@
-module github.com/kevinmchugh/inventory
+module github.com/KevinMcHugh/inventory
 
 go 1.26.0
 

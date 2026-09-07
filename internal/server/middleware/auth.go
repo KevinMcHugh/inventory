@@ -9,8 +9,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/kevinmchugh/inventory/internal/auth"
-	dbgen "github.com/kevinmchugh/inventory/internal/db/gen"
+	"github.com/KevinMcHugh/inventory/internal/auth"
+	dbgen "github.com/KevinMcHugh/inventory/internal/db/gen"
 )
 
 // Auth returns middleware that resolves an Authorization: Bearer <key> header

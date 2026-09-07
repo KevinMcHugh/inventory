@@ -5,8 +5,8 @@ import (
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/kevinmchugh/inventory/internal/auth"
-	dbgen "github.com/kevinmchugh/inventory/internal/db/gen"
+	"github.com/KevinMcHugh/inventory/internal/auth"
+	dbgen "github.com/KevinMcHugh/inventory/internal/db/gen"
 )
 
 // -----------------------------------------------------------------------------

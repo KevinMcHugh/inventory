@@ -6,8 +6,8 @@ import (
 
 	"github.com/rs/xid"
 
-	apigen "github.com/kevinmchugh/inventory/internal/api/gen"
-	dbgen "github.com/kevinmchugh/inventory/internal/db/gen"
+	apigen "github.com/KevinMcHugh/inventory/internal/api/gen"
+	dbgen "github.com/KevinMcHugh/inventory/internal/db/gen"
 )
 
 // ViewModel is the presentation form of a tenant.

@@ -15,12 +15,12 @@ import (
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/rs/xid"
 
-	apigen "github.com/kevinmchugh/inventory/internal/api/gen"
-	"github.com/kevinmchugh/inventory/internal/auth"
-	dbgen "github.com/kevinmchugh/inventory/internal/db/gen"
-	invmcp "github.com/kevinmchugh/inventory/internal/mcp"
-	"github.com/kevinmchugh/inventory/internal/server"
-	authmw "github.com/kevinmchugh/inventory/internal/server/middleware"
+	apigen "github.com/KevinMcHugh/inventory/internal/api/gen"
+	"github.com/KevinMcHugh/inventory/internal/auth"
+	dbgen "github.com/KevinMcHugh/inventory/internal/db/gen"
+	invmcp "github.com/KevinMcHugh/inventory/internal/mcp"
+	"github.com/KevinMcHugh/inventory/internal/server"
+	authmw "github.com/KevinMcHugh/inventory/internal/server/middleware"
 )
 
 func main() {

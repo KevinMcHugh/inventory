@@ -12,7 +12,7 @@ import (
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	dbgen "github.com/kevinmchugh/inventory/internal/db/gen"
+	dbgen "github.com/KevinMcHugh/inventory/internal/db/gen"
 )
 
 // NewServer builds an MCP server with all inventory tools registered.
