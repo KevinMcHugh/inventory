@@ -9,10 +9,14 @@ import (
 )
 
 type Querier interface {
+	ConsumeOAuthCode(ctx context.Context, codeHash string) (OauthCode, error)
 	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (ApiKey, error)
 	CreateKind(ctx context.Context, arg CreateKindParams) (Kind, error)
 	CreateKindVersion(ctx context.Context, arg CreateKindVersionParams) (KindVersion, error)
 	CreateModel(ctx context.Context, arg CreateModelParams) (Model, error)
+	CreateOAuthClient(ctx context.Context, arg CreateOAuthClientParams) (OauthClient, error)
+	CreateOAuthCode(ctx context.Context, arg CreateOAuthCodeParams) (OauthCode, error)
+	CreateOAuthToken(ctx context.Context, arg CreateOAuthTokenParams) (OauthToken, error)
 	CreateTenant(ctx context.Context, arg CreateTenantParams) (Tenant, error)
 	DeleteAPIKey(ctx context.Context, id string) error
 	DeleteKind(ctx context.Context, arg DeleteKindParams) error
@@ -25,6 +29,8 @@ type Querier interface {
 	GetLatestKindVersion(ctx context.Context, kindID string) (KindVersion, error)
 	GetModelByID(ctx context.Context, arg GetModelByIDParams) (Model, error)
 	GetModelBySlug(ctx context.Context, arg GetModelBySlugParams) (Model, error)
+	GetOAuthClient(ctx context.Context, id string) (OauthClient, error)
+	GetOAuthTokenByHash(ctx context.Context, tokenHash string) (OauthToken, error)
 	GetTenant(ctx context.Context, id string) (Tenant, error)
 	ListAPIKeysByTenant(ctx context.Context, tenantID string) ([]ApiKey, error)
 	ListKindVersionsByKind(ctx context.Context, kindID string) ([]KindVersion, error)

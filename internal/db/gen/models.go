@@ -50,6 +50,40 @@ type Model struct {
 	DeletedAt     pgtype.Timestamptz `json:"deleted_at"`
 }
 
+type OauthClient struct {
+	ID               string             `json:"id"`
+	ClientSecretHash *string            `json:"client_secret_hash"`
+	RedirectUris     []byte             `json:"redirect_uris"`
+	ClientName       *string            `json:"client_name"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type OauthCode struct {
+	CodeHash            string             `json:"code_hash"`
+	ClientID            string             `json:"client_id"`
+	TenantID            string             `json:"tenant_id"`
+	RedirectUri         string             `json:"redirect_uri"`
+	CodeChallenge       string             `json:"code_challenge"`
+	CodeChallengeMethod string             `json:"code_challenge_method"`
+	Scope               *string            `json:"scope"`
+	ExpiresAt           pgtype.Timestamptz `json:"expires_at"`
+	ConsumedAt          pgtype.Timestamptz `json:"consumed_at"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+}
+
+type OauthToken struct {
+	ID        string             `json:"id"`
+	TokenHash string             `json:"token_hash"`
+	ClientID  string             `json:"client_id"`
+	TenantID  string             `json:"tenant_id"`
+	Scope     *string            `json:"scope"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+	RevokedAt pgtype.Timestamptz `json:"revoked_at"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type Tenant struct {
 	ID        string             `json:"id"`
 	Name      string             `json:"name"`

@@ -92,9 +92,16 @@ When `kindVersionId` is omitted on model create/update, the tool resolves the la
 
 ## Auth
 
-Every request to `/mcp` (and to the REST API) requires `Authorization: Bearer <key>`.
+Every request to `/mcp` (and to the REST API) requires `Authorization: Bearer <token>`.
 
-Keys are minted by the bootstrap CLI, which is also the only way to create a new tenant:
+Two token flavors are accepted:
+
+- **Raw api keys** with prefix `inv_` — minted by the bootstrap and `keys` subcommands. Best for curl, scripts, and Claude Desktop where you can paste a header.
+- **OAuth access tokens** with prefix `inv_at_` — issued by the built-in OAuth 2.1 authorization server. Required for Claude.ai custom connectors, which only speak OAuth.
+
+### Minting the first api key
+
+The bootstrap CLI is the only way to create a tenant and its first key:
 
 ```sh
 make bootstrap NAME="Kev"
@@ -102,14 +109,37 @@ make bootstrap NAME="Kev"
 # api_key:   inv_5b2q...       (save now — never shown again)
 ```
 
-Under the hood: `internal/server/middleware/auth.go` parses the bearer token, SHA-256s it, looks it up in `api_keys.key_hash`, and calls `auth.WithTenant(ctx, tenantID, apiKeyID)`. The chi router's context propagates down into MCP tool handlers, so tools call `auth.TenantID(ctx)` to know who they are serving.
+Under the hood: `internal/server/middleware/auth.go` parses the bearer token, SHA-256s it, looks it up in `api_keys.key_hash` (or `oauth_tokens.token_hash` for `inv_at_` tokens), and calls `auth.WithTenant(ctx, tenantID, apiKeyID)`. The chi router's context propagates down into MCP tool handlers, so tools call `auth.TenantID(ctx)` to know who they are serving.
 
-Notes:
+### OAuth 2.1 flow
 
-- Keys are never stored in plaintext. `key_hash` is the only column with the secret material.
-- The bearer prefix is `inv_`. Rotate a key with `./server keys rotate --key-id <xid>` (or `make keys-rotate KEY_ID=…`) — the old key stops working immediately, the new raw key is printed once.
-- List active keys per tenant with `./server keys list --tenant <xid>` and mint additional keys with `./server keys create --tenant <xid> --name <label>`.
-- REST routes with a `{tenantId}` path segment additionally require that segment to match the authenticated tenant, or the middleware returns 403.
-- `/health` is the only unauthenticated endpoint.
+Implemented in `internal/oauth/`. Endpoints:
 
-Configuring Claude Desktop or `claude.ai/code` to reach the server: point at `http://localhost:8080/mcp` (or your deployed URL) and paste the raw key from `make bootstrap` into the connector's auth field.
+- `GET /.well-known/oauth-protected-resource` — RFC 9728 resource-server metadata; points at this issuer as the AS.
+- `GET /.well-known/oauth-authorization-server` — RFC 8414 authorization-server metadata.
+- `POST /oauth/register` — RFC 7591 dynamic client registration (public clients, PKCE-only).
+- `GET /oauth/authorize` — a small HTML form asking the user to paste an `inv_` key.
+- `POST /oauth/authorize` — validates the pasted key, mints a code, redirects to `redirect_uri`.
+- `POST /oauth/token` — PKCE-validated code → access token.
+
+The `WWW-Authenticate: Bearer resource_metadata=…` header on 401 tells conforming clients where discovery lives. `PUBLIC_URL` env var supplies the issuer origin so those URLs point at the right host.
+
+### Configuring Claude
+
+**claude.ai custom connector:**
+- URL: `https://<host>/mcp`
+- Authentication: **Always required**
+- OAuth client: **No client ID — register one automatically** (DCR)
+- On first connect, Claude bounces the user through `/oauth/authorize` where they paste an `inv_` key. That approval issues an `inv_at_` access token bound to the caller's tenant, good for 24 hours.
+
+**Claude Desktop (raw key path):**
+- URL: `https://<host>/mcp`
+- Header: `Authorization: Bearer inv_...` — the plain api key from bootstrap.
+
+### Key management
+
+- Keys are never stored in plaintext. `key_hash` (api keys) and `token_hash` (OAuth) are the only columns with secret material.
+- Rotate an api key: `./server keys rotate --key-id <xid>` (or `make keys-rotate KEY_ID=…`). Old key stops working immediately, new raw key printed once.
+- List keys: `./server keys list --tenant <xid>`. Mint more: `./server keys create --tenant <xid> --name <label>`.
+- OAuth access tokens expire on their own (24h). No separate revocation CLI yet — planned.
+- `/health` and the OAuth discovery + flow endpoints are the only unauthenticated paths.

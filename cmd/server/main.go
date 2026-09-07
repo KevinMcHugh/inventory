@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/go-chi/chi/v5"
@@ -20,6 +21,7 @@ import (
 	"github.com/KevinMcHugh/inventory/internal/auth"
 	dbgen "github.com/KevinMcHugh/inventory/internal/db/gen"
 	invmcp "github.com/KevinMcHugh/inventory/internal/mcp"
+	"github.com/KevinMcHugh/inventory/internal/oauth"
 	"github.com/KevinMcHugh/inventory/internal/server"
 	authmw "github.com/KevinMcHugh/inventory/internal/server/middleware"
 )
@@ -65,15 +67,23 @@ func runServer() error {
 		return fmt.Errorf("pgxpool.Ping: %w", err)
 	}
 
+	issuer := os.Getenv("PUBLIC_URL")
+	if issuer == "" {
+		issuer = "http://localhost:8080"
+	}
+	issuer = strings.TrimRight(issuer, "/")
+
 	q := dbgen.New(pool)
 	srv := server.New(q)
 	mcpServer := invmcp.NewServer(q)
+	oauthHandler := &oauth.Handler{Issuer: issuer, Q: q}
 
 	r := chi.NewRouter()
 	r.Use(chimw.Logger)
 	r.Use(chimw.Recoverer)
-	r.Use(authmw.Auth(q))
+	r.Use(authmw.Auth(q, issuer))
 
+	oauthHandler.Mount(r)
 	apigen.HandlerFromMux(apigen.NewStrictHandler(srv, nil), r)
 
 	mcpHandler := mcpsdk.NewStreamableHTTPHandler(
