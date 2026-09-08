@@ -87,12 +87,13 @@ export const tableStyle: CSSProperties = {
 
 export const thStyle: CSSProperties = {
   textAlign: "left",
-  padding: "0.5rem 0.6rem",
+  padding: "0.35rem 0.5rem",
   borderBottom: "2px solid var(--border)",
   fontWeight: 600,
-  fontSize: "0.85rem",
+  fontSize: "0.78rem",
   color: "var(--muted)",
   userSelect: "none",
+  whiteSpace: "nowrap",
 };
 
 export const thSortableStyle: CSSProperties = {
@@ -101,8 +102,22 @@ export const thSortableStyle: CSSProperties = {
 };
 
 export const tdStyle: CSSProperties = {
-  padding: "0.55rem 0.6rem",
+  padding: "0.28rem 0.5rem",
   borderBottom: "1px solid var(--border-item)",
-  fontSize: "0.9rem",
+  fontSize: "0.83rem",
   verticalAlign: "top",
+  whiteSpace: "nowrap",
+  maxWidth: 260,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+};
+
+export const inputStyle: CSSProperties = {
+  padding: "0.4rem 0.6rem",
+  fontSize: "0.85rem",
+  border: "1px solid var(--input-border)",
+  background: "var(--input-bg)",
+  color: "var(--fg)",
+  borderRadius: 6,
+  minWidth: 0,
 };

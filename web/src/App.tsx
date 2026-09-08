@@ -36,7 +36,7 @@ export default function App() {
           path="/kinds/:kindId"
           element={
             <AuthGate>
-              <Layout>
+              <Layout wide>
                 <KindPage />
               </Layout>
             </AuthGate>

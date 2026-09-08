@@ -9,9 +9,18 @@ import {
   pageStyle,
 } from "./styles";
 
-export function Layout({ children }: { children: ReactNode }) {
+export function Layout({
+  children,
+  wide = false,
+}: {
+  children: ReactNode;
+  wide?: boolean;
+}) {
+  const style = wide
+    ? { ...pageStyle, maxWidth: "min(96vw, 1600px)" }
+    : pageStyle;
   return (
-    <main style={pageStyle}>
+    <main style={style}>
       <header style={headerStyle}>
         <Link to="/" style={{ ...linkStyle, ...headerTitleStyle }}>
           Inventory
