@@ -24,7 +24,7 @@ RETURNING *;
 
 -- name: CreateOAuthToken :one
 INSERT INTO oauth_tokens (id, token_hash, client_id, tenant_id, scope, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6)
+VALUES ($1, $2, sqlc.narg(client_id), $3, $4, $5)
 RETURNING *;
 
 -- name: GetOAuthTokenByHash :one

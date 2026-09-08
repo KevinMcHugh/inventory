@@ -10,6 +10,7 @@ import (
 
 type Querier interface {
 	ConsumeOAuthCode(ctx context.Context, codeHash string) (OauthCode, error)
+	ConsumeSSOLoginIntent(ctx context.Context, state string) (SsoLoginIntent, error)
 	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (ApiKey, error)
 	CreateKind(ctx context.Context, arg CreateKindParams) (Kind, error)
 	CreateKindVersion(ctx context.Context, arg CreateKindVersionParams) (KindVersion, error)
@@ -17,7 +18,9 @@ type Querier interface {
 	CreateOAuthClient(ctx context.Context, arg CreateOAuthClientParams) (OauthClient, error)
 	CreateOAuthCode(ctx context.Context, arg CreateOAuthCodeParams) (OauthCode, error)
 	CreateOAuthToken(ctx context.Context, arg CreateOAuthTokenParams) (OauthToken, error)
+	CreateSSOLoginIntent(ctx context.Context, arg CreateSSOLoginIntentParams) (SsoLoginIntent, error)
 	CreateTenant(ctx context.Context, arg CreateTenantParams) (Tenant, error)
+	CreateUserIdentity(ctx context.Context, arg CreateUserIdentityParams) (UserIdentity, error)
 	DeleteAPIKey(ctx context.Context, id string) error
 	DeleteKind(ctx context.Context, arg DeleteKindParams) error
 	DeleteModelBySlug(ctx context.Context, arg DeleteModelBySlugParams) error
@@ -32,12 +35,15 @@ type Querier interface {
 	GetOAuthClient(ctx context.Context, id string) (OauthClient, error)
 	GetOAuthTokenByHash(ctx context.Context, tokenHash string) (OauthToken, error)
 	GetTenant(ctx context.Context, id string) (Tenant, error)
+	GetUserIdentityByProviderSubject(ctx context.Context, arg GetUserIdentityByProviderSubjectParams) (UserIdentity, error)
 	ListAPIKeysByTenant(ctx context.Context, tenantID string) ([]ApiKey, error)
 	ListKindVersionsByKind(ctx context.Context, kindID string) ([]KindVersion, error)
 	ListKindsByTenant(ctx context.Context, tenantID string) ([]Kind, error)
 	ListModelsByKind(ctx context.Context, arg ListModelsByKindParams) ([]Model, error)
 	ListTenants(ctx context.Context) ([]Tenant, error)
+	PurgeExpiredSSOIntents(ctx context.Context) error
 	TouchAPIKey(ctx context.Context, id string) error
+	TouchUserIdentity(ctx context.Context, arg TouchUserIdentityParams) error
 	UpdateKind(ctx context.Context, arg UpdateKindParams) (Kind, error)
 	UpdateModelBySlug(ctx context.Context, arg UpdateModelBySlugParams) (Model, error)
 	UpdateTenant(ctx context.Context, arg UpdateTenantParams) (Tenant, error)

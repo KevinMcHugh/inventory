@@ -41,7 +41,7 @@ func (h *Handler) token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if row.ClientID != clientID {
+	if derefOr(row.ClientID, "") != clientID {
 		writeJSONError(w, http.StatusBadRequest, "invalid_grant", "code was issued for a different client")
 		return
 	}

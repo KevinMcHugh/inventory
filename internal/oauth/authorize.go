@@ -75,7 +75,8 @@ func (h *Handler) authorizeGET(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := authorizeTmpl.Execute(w, authorizeView{Params: p}); err != nil {
+	view := authorizeView{Params: p, GoogleEnabled: h.idp != nil && h.idp.GoogleEnabled()}
+	if err := authorizeTmpl.Execute(w, view); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -127,7 +128,7 @@ func (h *Handler) authorizePOST(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := h.Q.CreateOAuthCode(r.Context(), dbgen.CreateOAuthCodeParams{
 		CodeHash:            hashToken(rawCode),
-		ClientID:            p.ClientID,
+		ClientID:            &p.ClientID,
 		TenantID:            row.TenantID,
 		RedirectUri:         p.RedirectURI,
 		CodeChallenge:       p.CodeChallenge,
@@ -166,8 +167,9 @@ func renderAuthorizeError(w http.ResponseWriter, p authorizeParams, msg string) 
 }
 
 type authorizeView struct {
-	Params authorizeParams
-	Error  string
+	Params        authorizeParams
+	Error         string
+	GoogleEnabled bool
 }
 
 var authorizeTmpl = template.Must(template.New("authorize").Parse(`<!doctype html>
@@ -205,12 +207,33 @@ var authorizeTmpl = template.Must(template.New("authorize").Parse(`<!doctype htm
     }
     .err { color: var(--err-fg); background: var(--err-bg); padding: 0.6rem 0.8rem; border-radius: 6px; }
     code { background: var(--code-bg); padding: 0 0.25rem; border-radius: 3px; }
+    a.google {
+      display: block; text-align: center;
+      padding: 0.7rem 1rem; margin-top: 1rem;
+      background: var(--btn-bg); color: var(--btn-fg);
+      border-radius: 6px; text-decoration: none; font-weight: 600;
+    }
+    a.google:hover { opacity: 0.9; }
+    .or {
+      text-align: center; color: var(--muted); font-size: 0.85rem;
+      margin: 1rem 0 0.5rem 0;
+    }
   </style>
 </head>
 <body>
-  <h1>Authorize this MCP client</h1>
-  <p>Paste your Inventory api key (starts with <code>inv_</code>) to grant access. You can list and rotate keys with the <code>server keys</code> CLI.</p>
+  <h1>Sign in to grant access</h1>
   {{if .Error}}<div class="err">{{.Error}}</div>{{end}}
+
+  {{if .GoogleEnabled}}
+  <p>Choose how to sign in.</p>
+  <a href="/auth/google?client_id={{.Params.ClientID}}&redirect_uri={{.Params.RedirectURI}}&state={{.Params.State}}&code_challenge={{.Params.CodeChallenge}}&code_challenge_method={{.Params.CodeChallengeMethod}}&scope={{.Params.Scope}}"
+     class="google">
+    Sign in with Google
+  </a>
+  <div class="or">or</div>
+  {{end}}
+
+  <p>Paste your Inventory api key (starts with <code>inv_</code>) to grant access.</p>
   <form method="POST">
     <input type="text" name="api_key" autocomplete="off" autofocus placeholder="inv_...">
     <input type="hidden" name="response_type" value="code">

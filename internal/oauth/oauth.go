@@ -46,7 +46,22 @@ type Handler struct {
 	// resource identifiers.
 	Issuer string
 	Q      dbgen.Querier
+
+	// idp, when set, is consulted by the /oauth/authorize form to decide
+	// whether to render "Sign in with Google" alongside the paste-a-key
+	// fallback. Kept as an interface here to avoid an import cycle with
+	// internal/idp.
+	idp idpInfo
 }
+
+// idpInfo is what /oauth/authorize wants to know about IDP handlers. The
+// concrete type in internal/idp satisfies this.
+type idpInfo interface {
+	GoogleEnabled() bool
+}
+
+// SetIDP is how main.go plugs in the IDP handler after both Handlers exist.
+func (h *Handler) SetIDP(i idpInfo) { h.idp = i }
 
 // Mount attaches every OAuth endpoint onto r.
 func (h *Handler) Mount(r chi.Router) {

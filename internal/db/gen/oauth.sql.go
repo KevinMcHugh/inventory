@@ -81,7 +81,7 @@ RETURNING code_hash, client_id, tenant_id, redirect_uri, code_challenge, code_ch
 
 type CreateOAuthCodeParams struct {
 	CodeHash            string             `json:"code_hash"`
-	ClientID            string             `json:"client_id"`
+	ClientID            *string            `json:"client_id"`
 	TenantID            string             `json:"tenant_id"`
 	RedirectUri         string             `json:"redirect_uri"`
 	CodeChallenge       string             `json:"code_challenge"`
@@ -119,27 +119,27 @@ func (q *Queries) CreateOAuthCode(ctx context.Context, arg CreateOAuthCodeParams
 
 const createOAuthToken = `-- name: CreateOAuthToken :one
 INSERT INTO oauth_tokens (id, token_hash, client_id, tenant_id, scope, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6)
+VALUES ($1, $2, $6, $3, $4, $5)
 RETURNING id, token_hash, client_id, tenant_id, scope, expires_at, revoked_at, created_at
 `
 
 type CreateOAuthTokenParams struct {
 	ID        string             `json:"id"`
 	TokenHash string             `json:"token_hash"`
-	ClientID  string             `json:"client_id"`
 	TenantID  string             `json:"tenant_id"`
 	Scope     *string            `json:"scope"`
 	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+	ClientID  *string            `json:"client_id"`
 }
 
 func (q *Queries) CreateOAuthToken(ctx context.Context, arg CreateOAuthTokenParams) (OauthToken, error) {
 	row := q.db.QueryRow(ctx, createOAuthToken,
 		arg.ID,
 		arg.TokenHash,
-		arg.ClientID,
 		arg.TenantID,
 		arg.Scope,
 		arg.ExpiresAt,
+		arg.ClientID,
 	)
 	var i OauthToken
 	err := row.Scan(

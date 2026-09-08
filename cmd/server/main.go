@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
@@ -22,6 +23,7 @@ import (
 	apigen "github.com/KevinMcHugh/inventory/internal/api/gen"
 	"github.com/KevinMcHugh/inventory/internal/auth"
 	dbgen "github.com/KevinMcHugh/inventory/internal/db/gen"
+	"github.com/KevinMcHugh/inventory/internal/idp"
 	invmcp "github.com/KevinMcHugh/inventory/internal/mcp"
 	"github.com/KevinMcHugh/inventory/internal/oauth"
 	"github.com/KevinMcHugh/inventory/internal/server"
@@ -79,6 +81,16 @@ func runServer() error {
 	srv := server.New(q)
 	mcpServer := invmcp.NewServer(q)
 	oauthHandler := &oauth.Handler{Issuer: issuer, Q: q}
+	idpHandler := &idp.Handler{
+		Cfg: idp.Config{
+			Issuer:             issuer,
+			GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+			GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+		},
+		Q:           q,
+		TokenMinter: oauthMinter{h: oauthHandler},
+	}
+	oauthHandler.SetIDP(idpHandler)
 
 	r := chi.NewRouter()
 	r.Use(chimw.Logger)
@@ -98,6 +110,7 @@ func runServer() error {
 
 	// Public: OAuth discovery + flow endpoints do their own credential validation.
 	oauthHandler.Mount(r)
+	idpHandler.Mount(r)
 
 	// Auth-protected: REST + MCP.
 	mcpHandler := mcpsdk.NewStreamableHTTPHandler(
@@ -361,6 +374,26 @@ func spaHandler(dir string) http.HandlerFunc {
 	}
 }
 
+// oauthMinter adapts *oauth.Handler to the idp.TokenMinter interface,
+// keeping the two packages independent of each other's params types.
+type oauthMinter struct{ h *oauth.Handler }
+
+func (m oauthMinter) MintAccessToken(ctx context.Context, tenantID, clientID string, ttl time.Duration) (string, error) {
+	return m.h.MintAccessToken(ctx, tenantID, clientID, ttl)
+}
+
+func (m oauthMinter) MintAuthzCode(ctx context.Context, p idp.AuthzCodeParams) (string, error) {
+	return m.h.MintAuthzCode(ctx, oauth.MintAuthzCodeParams{
+		ClientID:            p.ClientID,
+		TenantID:            p.TenantID,
+		RedirectURI:         p.RedirectURI,
+		CodeChallenge:       p.CodeChallenge,
+		CodeChallengeMethod: p.CodeChallengeMethod,
+		Scope:               p.Scope,
+		TTL:                 p.TTL,
+	})
+}
+
 // spaOrAPI is chi middleware that intercepts browser navigation and serves
 // the SPA before chi's own routing runs. It applies only to GET requests
 // whose Accept header prefers text/html — which is what browsers send when
@@ -373,7 +406,9 @@ func spaOrAPI(spa http.HandlerFunc) func(http.Handler) http.Handler {
 		if p == "/health" {
 			return true
 		}
-		return strings.HasPrefix(p, "/oauth/") || strings.HasPrefix(p, "/.well-known/")
+		return strings.HasPrefix(p, "/oauth/") ||
+			strings.HasPrefix(p, "/.well-known/") ||
+			strings.HasPrefix(p, "/auth/")
 	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

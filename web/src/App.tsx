@@ -13,8 +13,9 @@ import { KindEditPage } from "./pages/KindEditPage";
 import { KindPage } from "./pages/KindPage";
 import { ModelEditPage } from "./pages/ModelEditPage";
 import { ModelPage } from "./pages/ModelPage";
-import { getToken, startLogin } from "./oauth";
+import { getToken, saveToken, startLogin } from "./oauth";
 import {
+  buttonStyle,
   mutedStyle,
   pageStyle,
   primaryButtonStyle,
@@ -100,6 +101,20 @@ function AuthGate({ children }: { children: ReactNode }) {
   const [signedIn, setSignedIn] = useState(false);
 
   useEffect(() => {
+    // SSO callback lands here with the raw token in the URL fragment.
+    // Pull it into localStorage and strip the fragment so a browser refresh
+    // does not re-parse it.
+    if (window.location.hash.startsWith("#access_token=")) {
+      const raw = decodeURIComponent(
+        window.location.hash.slice("#access_token=".length),
+      );
+      if (raw) saveToken(raw);
+      window.history.replaceState(
+        {},
+        "",
+        window.location.pathname + window.location.search,
+      );
+    }
     setSignedIn(Boolean(getToken()));
     setReady(true);
   }, []);
@@ -120,12 +135,34 @@ function SignIn() {
     <main style={pageStyle}>
       <h1 style={{ margin: 0, fontSize: "1.4rem" }}>Inventory</h1>
       <section style={{ marginTop: "2rem" }}>
-        <p style={mutedStyle}>
-          Sign in with your Inventory api key to view your data.
-        </p>
-        <button style={primaryButtonStyle} onClick={() => startLogin()}>
-          Sign in
-        </button>
+        <p style={mutedStyle}>Sign in to view your data.</p>
+        <div style={{ display: "grid", gap: "0.6rem", maxWidth: 320 }}>
+          <a
+            href={
+              "/auth/google?return_to=" +
+              encodeURIComponent(window.location.pathname || "/")
+            }
+            style={{
+              ...primaryButtonStyle,
+              textDecoration: "none",
+              textAlign: "center",
+            }}
+          >
+            Sign in with Google
+          </a>
+          <div
+            style={{
+              ...mutedStyle,
+              textAlign: "center",
+              fontSize: "0.85rem",
+            }}
+          >
+            or
+          </div>
+          <button style={buttonStyle} onClick={() => startLogin()}>
+            Use an inv_ api key
+          </button>
+        </div>
       </section>
     </main>
   );

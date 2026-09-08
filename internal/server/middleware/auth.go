@@ -38,6 +38,8 @@ func Auth(q dbgen.Querier, issuer string) func(http.Handler) http.Handler {
 		"/oauth/register":                           true,
 		"/oauth/authorize":                          true,
 		"/oauth/token":                              true,
+		"/auth/google":                              true,
+		"/auth/google/callback":                     true,
 	}
 	wwwAuth := `Bearer resource_metadata="` + issuer + `/.well-known/oauth-protected-resource"`
 

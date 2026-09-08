@@ -68,6 +68,13 @@ export function getToken(): string | null {
   return localStorage.getItem(STORAGE.token);
 }
 
+// saveToken stores a raw access token in localStorage. Called from the
+// Google SSO redirect handler after we parse the token out of the URL
+// fragment.
+export function saveToken(raw: string): void {
+  localStorage.setItem(STORAGE.token, raw);
+}
+
 export function logout(): void {
   localStorage.removeItem(STORAGE.token);
 }
