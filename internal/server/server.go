@@ -6,6 +6,7 @@ import (
 
 	apigen "github.com/KevinMcHugh/inventory/internal/api/gen"
 	dbgen "github.com/KevinMcHugh/inventory/internal/db/gen"
+	"github.com/KevinMcHugh/inventory/internal/kindschema"
 	"github.com/KevinMcHugh/inventory/internal/server/kinds"
 	"github.com/KevinMcHugh/inventory/internal/server/models"
 	"github.com/KevinMcHugh/inventory/internal/server/tenants"
@@ -118,14 +119,22 @@ func (s *Server) CreateModel(ctx context.Context, req apigen.CreateModelRequestO
 	if req.Body == nil {
 		return nil, errors.New("body required")
 	}
-	return Run(ctx, models.CreateEndpoint{Store: s.q}, req)
+	resp, err := Run(ctx, models.CreateEndpoint{Store: s.q}, req)
+	if verrs, ok := asValidationErrors(err); ok {
+		return apigen.CreateModel400JSONResponse{BadRequestJSONResponse: validationErrorResponse(verrs)}, nil
+	}
+	return resp, err
 }
 
 func (s *Server) UpdateModel(ctx context.Context, req apigen.UpdateModelRequestObject) (apigen.UpdateModelResponseObject, error) {
 	if req.Body == nil {
 		return nil, errors.New("body required")
 	}
-	return Run(ctx, models.UpdateEndpoint{Store: s.q}, req)
+	resp, err := Run(ctx, models.UpdateEndpoint{Store: s.q}, req)
+	if verrs, ok := asValidationErrors(err); ok {
+		return apigen.UpdateModel400JSONResponse{BadRequestJSONResponse: validationErrorResponse(verrs)}, nil
+	}
+	return resp, err
 }
 
 func (s *Server) DeleteModel(ctx context.Context, req apigen.DeleteModelRequestObject) (apigen.DeleteModelResponseObject, error) {
@@ -134,3 +143,31 @@ func (s *Server) DeleteModel(ctx context.Context, req apigen.DeleteModelRequestO
 
 // Compile-time assertion.
 var _ apigen.StrictServerInterface = (*Server)(nil)
+
+// asValidationErrors unwraps err into kindschema.ValidationErrors if it is
+// one, so callers can produce a structured 400 response instead of a 500.
+func asValidationErrors(err error) (kindschema.ValidationErrors, bool) {
+	if err == nil {
+		return nil, false
+	}
+	var verrs kindschema.ValidationErrors
+	if errors.As(err, &verrs) {
+		return verrs, true
+	}
+	return nil, false
+}
+
+// validationErrorResponse builds a BadRequestJSONResponse populated with
+// per-field errors from a ValidationErrors list.
+func validationErrorResponse(verrs kindschema.ValidationErrors) apigen.BadRequestJSONResponse {
+	fields := make([]apigen.FieldError, len(verrs))
+	for i, e := range verrs {
+		fields[i] = apigen.FieldError{Field: e.Field, Message: e.Message}
+	}
+	code := "validation_failed"
+	return apigen.BadRequestJSONResponse{
+		Message: "one or more fields did not match the kind schema",
+		Code:    &code,
+		Fields:  &fields,
+	}
+}

@@ -10,6 +10,7 @@ import (
 	apigen "github.com/KevinMcHugh/inventory/internal/api/gen"
 	"github.com/KevinMcHugh/inventory/internal/auth"
 	dbgen "github.com/KevinMcHugh/inventory/internal/db/gen"
+	"github.com/KevinMcHugh/inventory/internal/kindschema"
 )
 
 // -----------------------------------------------------------------------------
@@ -129,6 +130,7 @@ func (e GetEndpoint) Render(vm ViewModel) apigen.GetModelResponseObject {
 type CreateStore interface {
 	CreateModel(ctx context.Context, arg dbgen.CreateModelParams) (dbgen.Model, error)
 	GetLatestKindVersion(ctx context.Context, kindID string) (dbgen.KindVersion, error)
+	GetKindVersion(ctx context.Context, id string) (dbgen.KindVersion, error)
 }
 
 type CreateEndpoint struct{ Store CreateStore }
@@ -141,6 +143,9 @@ func (e CreateEndpoint) Interact(ctx context.Context, req apigen.CreateModelRequ
 	versionID, err := resolveVersion(ctx, e.Store, req.KindId, req.Body.KindVersionId)
 	if err != nil {
 		return dbgen.Model{}, err
+	}
+	if errs := validateBody(ctx, e.Store, versionID, req.Body.Body); len(errs) > 0 {
+		return dbgen.Model{}, errs
 	}
 	bodyBytes, err := json.Marshal(req.Body.Body)
 	if err != nil {
@@ -169,6 +174,7 @@ func (e CreateEndpoint) Render(vm ViewModel) apigen.CreateModelResponseObject {
 type UpdateStore interface {
 	UpdateModelBySlug(ctx context.Context, arg dbgen.UpdateModelBySlugParams) (dbgen.Model, error)
 	GetLatestKindVersion(ctx context.Context, kindID string) (dbgen.KindVersion, error)
+	GetKindVersion(ctx context.Context, id string) (dbgen.KindVersion, error)
 }
 
 type UpdateEndpoint struct{ Store UpdateStore }
@@ -181,6 +187,9 @@ func (e UpdateEndpoint) Interact(ctx context.Context, req apigen.UpdateModelRequ
 	versionID, err := resolveVersion(ctx, e.Store, req.KindId, req.Body.KindVersionId)
 	if err != nil {
 		return dbgen.Model{}, err
+	}
+	if errs := validateBody(ctx, e.Store, versionID, req.Body.Body); len(errs) > 0 {
+		return dbgen.Model{}, errs
 	}
 	bodyBytes, err := json.Marshal(req.Body.Body)
 	if err != nil {
@@ -246,4 +255,22 @@ func resolveVersion(ctx context.Context, s versionResolver, kindID string, provi
 		return "", err
 	}
 	return v.ID, nil
+}
+
+// validateBody loads the schema pinned by versionID and returns any per-field
+// errors the body violates. Nil/empty schema (no fields authored yet) means
+// no rules and every body validates. The returned ValidationErrors is itself
+// an error, so callers propagate it directly.
+func validateBody(
+	ctx context.Context,
+	q kindschema.VersionByIDLoader,
+	versionID string,
+	body map[string]any,
+) kindschema.ValidationErrors {
+	s, err := kindschema.Load(ctx, q, versionID)
+	if err != nil {
+		// A missing/broken schema should not block writes — treat as no rules.
+		return nil
+	}
+	return kindschema.Validate(s, body)
 }

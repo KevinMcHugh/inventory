@@ -196,6 +196,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Model"
+        "400":
+          $ref: "#/components/responses/BadRequest"
 
   /kinds/{kindId}/models/{slug}:
     parameters:
@@ -229,6 +231,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Model"
+        "400":
+          $ref: "#/components/responses/BadRequest"
     delete:
       operationId: deleteModel
       summary: Soft-delete a model
@@ -282,6 +286,20 @@ components:
         message:
           type: string
         code:
+          type: string
+        fields:
+          type: array
+          description: Present on 400 responses from writes that were rejected by schema validation. One entry per field that failed.
+          items:
+            $ref: "#/components/schemas/FieldError"
+
+    FieldError:
+      type: object
+      required: [field, message]
+      properties:
+        field:
+          type: string
+        message:
           type: string
 
     Tenant:
@@ -365,6 +383,9 @@ components:
         pinned:
           type: boolean
           description: If true, the column is visible by default.
+        required:
+          type: boolean
+          description: If true, model writes must supply a non-blank value for this field.
         values:
           type: array
           items:

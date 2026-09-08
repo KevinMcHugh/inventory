@@ -26,6 +26,12 @@ type VersionLoader interface {
 	GetLatestKindVersion(ctx context.Context, kindID string) (dbgen.KindVersion, error)
 }
 
+// VersionByIDLoader is the narrow store surface Load needs — one method to
+// fetch a KindVersion by its own id.
+type VersionByIDLoader interface {
+	GetKindVersion(ctx context.Context, id string) (dbgen.KindVersion, error)
+}
+
 // FieldType enumerates the value shapes the frontend knows how to render
 // and filter. Unknown types fall back to Text on the render side.
 type FieldType string
@@ -43,10 +49,11 @@ const (
 
 // Field describes one property of a model body.
 type Field struct {
-	Key    string    `json:"key"`
-	Label  string    `json:"label,omitempty"`
-	Type   FieldType `json:"type"`
-	Pinned bool      `json:"pinned,omitempty"`
+	Key      string    `json:"key"`
+	Label    string    `json:"label,omitempty"`
+	Type     FieldType `json:"type"`
+	Pinned   bool      `json:"pinned,omitempty"`
+	Required bool      `json:"required,omitempty"`
 
 	// enum
 	Values []string `json:"values,omitempty"`
@@ -76,10 +83,23 @@ func LoadLatest(ctx context.Context, q VersionLoader, kindID string) (*Schema, e
 		}
 		return nil, err
 	}
-	return parse(v.Schema)
+	return Parse(v.Schema)
 }
 
-func parse(raw []byte) (*Schema, error) {
+// Load returns the parsed schema of a specific KindVersion by id. Used when
+// a model write pins to a version explicitly and we want to validate the
+// body against that version's rules rather than the latest.
+func Load(ctx context.Context, q VersionByIDLoader, versionID string) (*Schema, error) {
+	v, err := q.GetKindVersion(ctx, versionID)
+	if err != nil {
+		return nil, err
+	}
+	return Parse(v.Schema)
+}
+
+// Parse unmarshals raw JSONB bytes into a Schema. Empty bytes yield an empty
+// (non-nil) Schema so callers do not have to nil-check.
+func Parse(raw []byte) (*Schema, error) {
 	s := &Schema{}
 	if len(raw) == 0 {
 		return s, nil
