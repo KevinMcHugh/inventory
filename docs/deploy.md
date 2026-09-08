@@ -61,6 +61,45 @@ sprite exec -- bash -lc '/.sprite/bin/sprite-env services create inventory \
 sprite config update -s inventory --url-auth public
 ```
 
+## Google SSO (optional)
+
+Adds a "Sign in with Google" button to the web sign-in screen and to the
+`/oauth/authorize` page used by Claude. First login from a Google identity
+we have not seen creates a fresh tenant automatically. Existing `inv_` api
+keys keep working as a fallback.
+
+### One-time: register an OAuth client with Google
+
+1. Go to <https://console.cloud.google.com/apis/credentials> and pick (or
+   create) a project.
+2. If it prompts for an OAuth consent screen: External, add your email as a
+   test user, set the app name to `Inventory`, scopes `openid email profile`.
+3. Click **Create Credentials → OAuth client ID**.
+4. Type: **Web application**.
+5. Authorized JavaScript origins: `https://<sprite-name>-<org>.sprites.app`
+6. Authorized redirect URIs:
+   `https://<sprite-name>-<org>.sprites.app/auth/google/callback`
+7. Copy the resulting **Client ID** and **Client secret**.
+
+### Wire them into the sprite service
+
+The service env is set at create time, so re-create it with the two extra
+vars:
+
+```sh
+sprite exec -- bash -lc '/.sprite/bin/sprite-env services stop inventory'
+sprite exec -- bash -lc '/.sprite/bin/sprite-env services delete inventory'
+sprite exec -- bash -lc '/.sprite/bin/sprite-env services create inventory \
+  --cmd /home/sprite/inventory/bin/server \
+  --dir /home/sprite/inventory \
+  --needs postgres --http-port 8080 \
+  --env "DATABASE_URL=postgres:///inventory?host=/var/run/postgresql&sslmode=disable,PORT=8080,PUBLIC_URL=https://<sprite-name>-<org>.sprites.app,GOOGLE_CLIENT_ID=<paste>,GOOGLE_CLIENT_SECRET=<paste>" \
+  --no-stream'
+```
+
+Verify the Google button now appears at `/oauth/authorize` (open any test
+authorize URL) and on the web sign-in screen.
+
 ## Notes on the sprite runtime
 
 - **Sprites pause when idle** and wake on incoming HTTP requests (the proxy auto-starts the `--http-port` service). Services with `--needs postgres` bring postgres up first.
