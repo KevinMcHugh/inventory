@@ -10,7 +10,7 @@ import (
 // this resource.
 func (h *Handler) protectedResourceMetadata(w http.ResponseWriter, r *http.Request) {
 	doc := map[string]any{
-		"resource":                 h.Issuer + "/mcp",
+		"resource":                 h.Issuer + "/mcp/rpc",
 		"authorization_servers":    []string{h.Issuer},
 		"bearer_methods_supported": []string{"header"},
 		"scopes_supported":         []string{"mcp"},

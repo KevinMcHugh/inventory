@@ -110,7 +110,7 @@ export default function App() {
 // -----------------------------------------------------------------------------
 
 function McpEndpoint() {
-  const url = window.location.origin + "/mcp";
+  const url = window.location.origin + "/mcp/rpc";
   const [copied, setCopied] = useState(false);
 
   async function copy() {

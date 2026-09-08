@@ -4,16 +4,18 @@ The inventory exposes its datastore over the [Model Context Protocol](https://mo
 
 ## Transport
 
-Streamable HTTP, mounted at `/mcp` on the same chi router as the REST API. Wired in `cmd/server/main.go`:
+Streamable HTTP, mounted at `/mcp/rpc` on the same chi router as the REST API. Wired in `cmd/server/main.go`:
 
 ```go
 mcpHandler := mcpsdk.NewStreamableHTTPHandler(
     func(*http.Request) *mcpsdk.Server { return mcpServer },
     nil,
 )
-r.Handle("/mcp", mcpHandler)
-r.Handle("/mcp/*", mcpHandler)
+r.Handle("/mcp/rpc", mcpHandler)
+r.Handle("/mcp/rpc/*", mcpHandler)
 ```
+
+The subpath is deliberate: fly.io's edge / sprite proxy intercepts the bare `/mcp` path and hangs POSTs against it before they reach the app. `/mcp/rpc` routes cleanly.
 
 Running one server means MCP and REST share the same pgx pool, tenant model, and logging.
 
@@ -86,13 +88,13 @@ When `kindVersionId` is omitted on model create/update, the tool resolves the la
 
 ## Testing locally
 
-- Connect Claude Desktop to `http://localhost:8080/mcp` via its MCP settings.
+- Connect Claude Desktop to `http://localhost:8080/mcp/rpc` via its MCP settings.
 - Or use [`mcp inspector`](https://github.com/modelcontextprotocol/inspector) pointed at the same URL.
 - Or write a Go client with the SDK's `Client` type and call `session.CallTool(...)`.
 
 ## Auth
 
-Every request to `/mcp` (and to the REST API) requires `Authorization: Bearer <token>`.
+Every request to `/mcp/rpc` (and to the REST API) requires `Authorization: Bearer <token>`.
 
 Two token flavors are accepted:
 
@@ -127,13 +129,13 @@ The `WWW-Authenticate: Bearer resource_metadata=…` header on 401 tells conform
 ### Configuring Claude
 
 **claude.ai custom connector:**
-- URL: `https://<host>/mcp`
+- URL: `https://<host>/mcp/rpc`
 - Authentication: **Always required**
 - OAuth client: **No client ID — register one automatically** (DCR)
 - On first connect, Claude bounces the user through `/oauth/authorize` where they paste an `inv_` key. That approval issues an `inv_at_` access token bound to the caller's tenant, good for 24 hours.
 
 **Claude Desktop (raw key path):**
-- URL: `https://<host>/mcp`
+- URL: `https://<host>/mcp/rpc`
 - Header: `Authorization: Bearer inv_...` — the plain api key from bootstrap.
 
 ### Key management

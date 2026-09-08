@@ -5,7 +5,7 @@ A general-purpose datastore for AI agents, exposed over REST and the [Model Cont
 - Multi-tenant from day one
 - Flexible schema — `Kinds` + versioned `KindVersions` let new data types be added without redeploying
 - Core primitive: a `Model` — a schematized JSON blob keyed by `(tenant, kind, slug)`
-- Claude reaches it over MCP at `/mcp`
+- Claude reaches it over MCP at `/mcp/rpc`
 
 ## Stack
 
@@ -29,7 +29,7 @@ Everything except `/health` requires `Authorization: Bearer <key>`. Mint the fir
 make bootstrap NAME="Kev"
 ```
 
-MCP is mounted at `http://localhost:8080/mcp`. REST is at `http://localhost:8080/kinds/...` (tenant is derived from your api key — no tenantId in the URL).
+MCP is mounted at `http://localhost:8080/mcp/rpc`. REST is at `http://localhost:8080/kinds/...` (tenant is derived from your api key — no tenantId in the URL).
 
 ## Repo layout
 
@@ -69,4 +69,4 @@ web/                    Vite + React + TypeScript UI
 
 ## Deploy target
 
-fly.io sprite — see [docs/deploy.md](docs/deploy.md). Currently running at `https://inventory-b2mxg.sprites.app` (MCP at `/mcp`).
+fly.io sprite — see [docs/deploy.md](docs/deploy.md). Currently running at `https://inventory-b2mxg.sprites.app` (MCP at `/mcp/rpc`).

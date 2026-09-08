@@ -8,7 +8,7 @@ Inventory runs on a fly.io [sprite](https://sprites.dev) — a lightweight, sing
 
 - `GET /health` — unauthenticated
 - Everything else — `Authorization: Bearer <inv_...>`
-- MCP: `https://inventory-b2mxg.sprites.app/mcp`
+- MCP: `https://inventory-b2mxg.sprites.app/mcp/rpc`
 
 ## First deploy (recipe)
 
@@ -93,7 +93,7 @@ sprite exec -- bash -lc 'cd ~/inventory && ./bin/server keys rotate --key-id <ke
 
 Point Claude Desktop or `claude.ai/code` MCP settings at:
 
-- **URL:** `https://inventory-b2mxg.sprites.app/mcp`
+- **URL:** `https://inventory-b2mxg.sprites.app/mcp/rpc`
 - **Auth:** paste the raw `inv_...` key as the bearer token
 
 ## Rolling back

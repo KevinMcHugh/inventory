@@ -95,8 +95,11 @@ func runServer() error {
 	r.Group(func(r chi.Router) {
 		r.Use(authmw.Auth(q, issuer))
 		apigen.HandlerFromMux(apigen.NewStrictHandler(srv, nil), r)
-		r.Handle("/mcp", mcpHandler)
-		r.Handle("/mcp/*", mcpHandler)
+		// The bare /mcp path is intercepted by the fly/sprite proxy layer
+		// (POST hangs before reaching us). Mounting under /mcp/rpc dodges
+		// that; subpaths reach the SDK handler fine.
+		r.Handle("/mcp/rpc", mcpHandler)
+		r.Handle("/mcp/rpc/*", mcpHandler)
 	})
 
 	// Public: static web UI as SPA fallback. If WEB_DIST is unset or missing,
