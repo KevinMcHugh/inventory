@@ -160,11 +160,6 @@ export function KindPage() {
     onColumnVisibilityChange: setColumnVisibility,
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: fuzzyIncludes,
-    filterFns: {
-      enum: enumFilterFn,
-      date: dateFilterFn,
-      number: numberFilterFn,
-    },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -319,19 +314,20 @@ function makeBodyColumn(
 ): ColumnDef<Model, any> {
   const type = field?.type ?? "text";
   const header = field?.label || key;
+  const filterFn =
+    type === "enum"
+      ? enumFilterFn
+      : type === "date"
+        ? dateFilterFn
+        : type === "number" || type === "integer"
+          ? numberFilterFn
+          : undefined;
   return columnHelper.accessor((row) => (row.body ?? {})[key], {
     id: `body.${key}`,
     header,
     cell: (info) => renderCellFor(type, info.getValue()),
     sortingFn: type === "number" || type === "integer" ? numericSort : "auto",
-    filterFn:
-      type === "enum"
-        ? "enum"
-        : type === "date"
-          ? "date"
-          : type === "number" || type === "integer"
-            ? "number"
-            : "auto",
+    filterFn,
   });
 }
 
