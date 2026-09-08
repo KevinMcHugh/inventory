@@ -48,6 +48,7 @@ async function call<T>(path: string): Promise<T> {
 export const api = {
   tenant: () => call<Tenant>("/tenant"),
   kinds: () => call<Kind[]>("/kinds"),
+  kind: (kindId: string) => call<Kind>(`/kinds/${encodeURIComponent(kindId)}`),
   models: (kindId: string) =>
     call<Model[]>(`/kinds/${encodeURIComponent(kindId)}/models`),
 };

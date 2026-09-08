@@ -84,6 +84,18 @@ func runServer() error {
 	r.Use(chimw.Logger)
 	r.Use(chimw.Recoverer)
 
+	// If a web bundle is present, browser navigation to any URL that is not
+	// explicitly server-rendered by the app itself gets the SPA index.html
+	// even when an API route would otherwise match. JSON fetches (default
+	// Accept: */*) fall through to the API as normal.
+	dist := webDistDir()
+	var spa http.HandlerFunc
+	if dist != "" {
+		slog.Info("serving web UI", "dist", dist)
+		spa = spaHandler(dist)
+		r.Use(spaOrAPI(spa))
+	}
+
 	// Public: OAuth discovery + flow endpoints do their own credential validation.
 	oauthHandler.Mount(r)
 
@@ -102,11 +114,10 @@ func runServer() error {
 		r.Handle("/mcp/rpc/*", mcpHandler)
 	})
 
-	// Public: static web UI as SPA fallback. If WEB_DIST is unset or missing,
-	// the server is API-only (no UI served).
-	if dist := webDistDir(); dist != "" {
-		slog.Info("serving web UI", "dist", dist)
-		r.NotFound(spaHandler(dist))
+	// Static asset fallback: browser GET for /assets/*.js etc. lands here
+	// because JS asset requests do not send Accept: text/html.
+	if spa != nil {
+		r.NotFound(spa)
 	}
 
 	port := os.Getenv("PORT")
@@ -347,5 +358,34 @@ func spaHandler(dir string) http.HandlerFunc {
 			return
 		}
 		http.ServeFile(w, r, index)
+	}
+}
+
+// spaOrAPI is chi middleware that intercepts browser navigation and serves
+// the SPA before chi's own routing runs. It applies only to GET requests
+// whose Accept header prefers text/html — which is what browsers send when
+// following a link or typing a URL, but not what fetch() sends by default.
+//
+// Server-rendered pages (the OAuth login form, health, well-known discovery)
+// are exempt so they render on the server as intended.
+func spaOrAPI(spa http.HandlerFunc) func(http.Handler) http.Handler {
+	serverRendered := func(p string) bool {
+		if p == "/health" {
+			return true
+		}
+		return strings.HasPrefix(p, "/oauth/") || strings.HasPrefix(p, "/.well-known/")
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodGet || serverRendered(r.URL.Path) {
+				next.ServeHTTP(w, r)
+				return
+			}
+			if strings.Contains(r.Header.Get("Accept"), "text/html") {
+				spa(w, r)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
 	}
 }
