@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { api, type Kind, type Tenant } from "./api";
+import { api, type Kind, type Model, type Tenant } from "./api";
 import { completeLoginFromURL, getToken, logout, startLogin } from "./oauth";
 
 type AuthState = "checking" | "signed_out" | "signed_in";
@@ -11,12 +11,10 @@ export default function App() {
   const [kinds, setKinds] = useState<Kind[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // On mount: finish any pending OAuth callback, then decide auth state.
   useEffect(() => {
     (async () => {
       try {
         if (await completeLoginFromURL()) {
-          // Strip the ?code=&state=... query from the URL bar.
           window.history.replaceState({}, "", "/");
         }
       } catch (e) {
@@ -26,7 +24,6 @@ export default function App() {
     })();
   }, []);
 
-  // Fetch tenant + kinds once signed in.
   useEffect(() => {
     if (auth !== "signed_in") return;
     Promise.all([api.tenant(), api.kinds()])
@@ -42,7 +39,13 @@ export default function App() {
       <header style={headerStyle}>
         <h1 style={{ margin: 0, fontSize: "1.4rem" }}>Inventory</h1>
         {auth === "signed_in" && (
-          <button style={buttonStyle} onClick={() => { logout(); location.reload(); }}>
+          <button
+            style={buttonStyle}
+            onClick={() => {
+              logout();
+              location.reload();
+            }}
+          >
             Sign out
           </button>
         )}
@@ -82,19 +85,14 @@ export default function App() {
             {kinds === null && <p style={mutedStyle}>loading…</p>}
             {kinds && kinds.length === 0 && (
               <p style={mutedStyle}>
-                No kinds yet. Ask Claude to create one via the <code style={codeStyle}>create_kind</code> MCP tool.
+                No kinds yet. Ask Claude to create one via the{" "}
+                <code style={codeStyle}>create_kind</code> MCP tool.
               </p>
             )}
             {kinds && kinds.length > 0 && (
               <ul style={listStyle}>
                 {kinds.map((k) => (
-                  <li key={k.id} style={listItemStyle}>
-                    <strong>{k.name}</strong>{" "}
-                    <code style={codeStyle}>{k.id}</code>
-                    {k.description && (
-                      <div style={mutedStyle}>{k.description}</div>
-                    )}
-                  </li>
+                  <KindRow key={k.id} kind={k} />
                 ))}
               </ul>
             )}
@@ -102,6 +100,83 @@ export default function App() {
         </>
       )}
     </main>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// KindRow: click to expand/collapse; models fetched lazily on first expand.
+// -----------------------------------------------------------------------------
+
+function KindRow({ kind }: { kind: Kind }) {
+  const [expanded, setExpanded] = useState(false);
+  const [models, setModels] = useState<Model[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function toggle() {
+    const next = !expanded;
+    setExpanded(next);
+    if (next && models === null && !loading) {
+      setLoading(true);
+      try {
+        const ms = await api.models(kind.id);
+        setModels(ms);
+      } catch (e) {
+        setErr(String(e));
+      } finally {
+        setLoading(false);
+      }
+    }
+  }
+
+  return (
+    <li style={listItemStyle}>
+      <div
+        onClick={toggle}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            toggle();
+          }
+        }}
+        style={kindHeaderStyle}
+      >
+        <span style={chevronStyle}>{expanded ? "▾" : "▸"}</span>
+        <strong>{kind.name}</strong>
+        <code style={codeStyle}>{kind.id}</code>
+        {kind.description && (
+          <span style={{ ...mutedStyle, marginLeft: "auto" }}>
+            {kind.description}
+          </span>
+        )}
+      </div>
+      {expanded && (
+        <div style={modelsWrapStyle}>
+          {loading && <p style={mutedStyle}>loading models…</p>}
+          {err && <pre style={errorStyle}>{err}</pre>}
+          {models && models.length === 0 && (
+            <p style={mutedStyle}>No models in this kind.</p>
+          )}
+          {models && models.length > 0 && (
+            <ul style={listStyle}>
+              {models.map((m) => (
+                <li key={m.id} style={modelItemStyle}>
+                  <div style={modelHeaderStyle}>
+                    <strong>{m.slug}</strong>
+                    <code style={codeStyle}>{m.id}</code>
+                  </div>
+                  <pre style={bodyStyle}>
+                    {JSON.stringify(m.body, null, 2)}
+                  </pre>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </li>
   );
 }
 
@@ -119,20 +194,31 @@ function McpEndpoint() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // ignore — clipboard blocked (http, insecure context, etc.)
+      // clipboard blocked (insecure context, denied permission) — no-op
     }
   }
 
   return (
     <section style={sectionStyle}>
-      <h2 style={{ margin: "0 0 0.5rem 0", fontSize: "1rem" }}>Connect an MCP client</h2>
+      <h2 style={{ margin: "0 0 0.5rem 0", fontSize: "1rem" }}>
+        Connect an MCP client
+      </h2>
       <p style={mutedStyle}>
-        Point Claude (or any MCP client) here. Pick <em>Always required</em> and
-        {" "}<em>No client ID — register one automatically</em>. You will be sent
-        back to this login screen — paste your <code style={codeStyle}>inv_</code> api key to grant access.
+        Point Claude (or any MCP client) here. Pick <em>Always required</em>{" "}
+        and <em>No client ID — register one automatically</em>. You will be sent
+        back to this login screen — paste your{" "}
+        <code style={codeStyle}>inv_</code> api key to grant access.
       </p>
       <div style={endpointRowStyle}>
-        <code style={{ ...codeStyle, flex: 1, padding: "0.5rem 0.6rem", fontSize: "0.9rem", overflowX: "auto" }}>
+        <code
+          style={{
+            ...codeStyle,
+            flex: 1,
+            padding: "0.5rem 0.6rem",
+            fontSize: "0.9rem",
+            overflowX: "auto",
+          }}
+        >
           {url}
         </code>
         <button style={buttonStyle} onClick={copy}>
@@ -144,15 +230,15 @@ function McpEndpoint() {
 }
 
 // -----------------------------------------------------------------------------
-// Styles — inline so this stays a single file for now.
+// Styles — layout inline; colors reference CSS vars in index.css so both
+// light and dark palettes apply without a toggle.
 // -----------------------------------------------------------------------------
 
 const pageStyle: React.CSSProperties = {
-  fontFamily: "system-ui, -apple-system, sans-serif",
   maxWidth: 640,
   margin: "3rem auto",
   padding: "0 1.5rem",
-  color: "#1a1a1a",
+  color: "var(--fg)",
 };
 
 const headerStyle: React.CSSProperties = {
@@ -164,29 +250,33 @@ const headerStyle: React.CSSProperties = {
 const sectionStyle: React.CSSProperties = {
   marginTop: "2rem",
   paddingTop: "1rem",
-  borderTop: "1px solid #eee",
+  borderTop: "1px solid var(--border)",
 };
 
-const mutedStyle: React.CSSProperties = { color: "#666", fontSize: "0.9rem" };
+const mutedStyle: React.CSSProperties = {
+  color: "var(--muted)",
+  fontSize: "0.9rem",
+};
 
 const codeStyle: React.CSSProperties = {
-  background: "#f4f4f4",
+  background: "var(--code-bg)",
+  color: "var(--fg)",
   padding: "0 0.3rem",
   borderRadius: 3,
   fontSize: "0.85rem",
 };
 
 const errorStyle: React.CSSProperties = {
-  color: "#b00020",
-  background: "#ffe8ec",
+  color: "var(--error-fg)",
+  background: "var(--error-bg)",
   padding: "0.6rem 0.8rem",
   borderRadius: 6,
   whiteSpace: "pre-wrap",
 };
 
 const buttonStyle: React.CSSProperties = {
-  background: "#eee",
-  color: "#333",
+  background: "var(--btn-bg)",
+  color: "var(--btn-fg)",
   padding: "0.4rem 0.8rem",
   border: 0,
   borderRadius: 6,
@@ -195,8 +285,8 @@ const buttonStyle: React.CSSProperties = {
 
 const primaryButtonStyle: React.CSSProperties = {
   ...buttonStyle,
-  background: "#222",
-  color: "white",
+  background: "var(--btn-primary-bg)",
+  color: "var(--btn-primary-fg)",
   marginTop: "1rem",
   padding: "0.6rem 1.2rem",
 };
@@ -209,7 +299,49 @@ const listStyle: React.CSSProperties = {
 
 const listItemStyle: React.CSSProperties = {
   padding: "0.6rem 0",
-  borderBottom: "1px solid #f0f0f0",
+  borderBottom: "1px solid var(--border-item)",
+};
+
+const kindHeaderStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "0.5rem",
+  cursor: "pointer",
+  userSelect: "none",
+};
+
+const chevronStyle: React.CSSProperties = {
+  color: "var(--muted)",
+  width: "1rem",
+  display: "inline-block",
+  textAlign: "center",
+};
+
+const modelsWrapStyle: React.CSSProperties = {
+  marginTop: "0.6rem",
+  paddingLeft: "1.4rem",
+};
+
+const modelItemStyle: React.CSSProperties = {
+  padding: "0.4rem 0",
+  borderBottom: "1px solid var(--border-item)",
+};
+
+const modelHeaderStyle: React.CSSProperties = {
+  display: "flex",
+  gap: "0.5rem",
+  alignItems: "center",
+};
+
+const bodyStyle: React.CSSProperties = {
+  background: "var(--code-bg)",
+  color: "var(--fg)",
+  padding: "0.5rem 0.6rem",
+  borderRadius: 4,
+  fontSize: "0.8rem",
+  maxHeight: 240,
+  overflow: "auto",
+  margin: "0.4rem 0 0 0",
 };
 
 const endpointRowStyle: React.CSSProperties = {

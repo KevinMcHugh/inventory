@@ -1,0 +1,63 @@
+/* Palette lives in CSS variables. The dark override is driven by
+   prefers-color-scheme, so the app follows the OS/browser preference with
+   no toggle to build. Inline React styles reference these vars for color;
+   layout stays in the JS objects. */
+
+:root {
+  color-scheme: light dark;
+
+  --bg: #fdfdfd;
+  --fg: #1a1a1a;
+  --muted: #666666;
+  --border: #eeeeee;
+  --border-item: #f0f0f0;
+  --code-bg: #f4f4f4;
+  --input-bg: #ffffff;
+  --input-border: #bbbbbb;
+  --error-bg: #ffe8ec;
+  --error-fg: #b00020;
+  --btn-bg: #eeeeee;
+  --btn-fg: #333333;
+  --btn-primary-bg: #222222;
+  --btn-primary-fg: #ffffff;
+  --link: #0060df;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14161a;
+    --fg: #e8e8e6;
+    --muted: #8b8f95;
+    --border: #22262c;
+    --border-item: #1a1d22;
+    --code-bg: #1e2227;
+    --input-bg: #1a1d22;
+    --input-border: #3a3f45;
+    --error-bg: #3a1a1f;
+    --error-fg: #ff9aa8;
+    --btn-bg: #2a2e34;
+    --btn-fg: #d8d8d6;
+    --btn-primary-bg: #f0f0ee;
+    --btn-primary-fg: #14161a;
+    --link: #7fb2ff;
+  }
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+code,
+pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+button {
+  font: inherit;
+}

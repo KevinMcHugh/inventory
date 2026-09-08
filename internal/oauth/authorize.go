@@ -176,14 +176,35 @@ var authorizeTmpl = template.Must(template.New("authorize").Parse(`<!doctype htm
   <meta charset="utf-8">
   <title>Inventory · Authorize</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 480px; margin: 4rem auto; padding: 0 1rem; color: #222; }
+    :root {
+      color-scheme: light dark;
+      --bg: #fdfdfd; --fg: #1a1a1a; --muted: #555; --input-bg: #ffffff;
+      --input-border: #bbb; --btn-bg: #222; --btn-fg: #ffffff;
+      --err-bg: #ffe8ec; --err-fg: #b00020; --code-bg: #f4f4f4;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #14161a; --fg: #e8e8e6; --muted: #8b8f95; --input-bg: #1a1d22;
+        --input-border: #3a3f45; --btn-bg: #f0f0ee; --btn-fg: #14161a;
+        --err-bg: #3a1a1f; --err-fg: #ff9aa8; --code-bg: #1e2227;
+      }
+    }
+    html, body { background: var(--bg); color: var(--fg); }
+    body { font-family: system-ui, -apple-system, sans-serif; max-width: 480px; margin: 4rem auto; padding: 0 1rem; }
     h1 { font-size: 1.25rem; margin-bottom: 0.5rem; }
-    p  { color: #555; line-height: 1.5; }
+    p  { color: var(--muted); line-height: 1.5; }
     form { display: grid; gap: 1rem; margin-top: 1.5rem; }
-    input[type=text] { padding: 0.6rem 0.8rem; font-family: monospace; border: 1px solid #bbb; border-radius: 6px; }
-    button { padding: 0.6rem 1rem; background: #222; color: white; border: 0; border-radius: 6px; cursor: pointer; }
-    .err { color: #b00020; background: #ffe8ec; padding: 0.6rem 0.8rem; border-radius: 6px; }
-    code { background: #f4f4f4; padding: 0 0.25rem; border-radius: 3px; }
+    input[type=text] {
+      padding: 0.6rem 0.8rem; font-family: ui-monospace, Menlo, Consolas, monospace;
+      background: var(--input-bg); color: var(--fg);
+      border: 1px solid var(--input-border); border-radius: 6px;
+    }
+    button {
+      padding: 0.6rem 1rem; background: var(--btn-bg); color: var(--btn-fg);
+      border: 0; border-radius: 6px; cursor: pointer; font: inherit;
+    }
+    .err { color: var(--err-fg); background: var(--err-bg); padding: 0.6rem 0.8rem; border-radius: 6px; }
+    code { background: var(--code-bg); padding: 0 0.25rem; border-radius: 3px; }
   </style>
 </head>
 <body>

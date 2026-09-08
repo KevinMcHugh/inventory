@@ -18,6 +18,17 @@ export type Kind = {
   updatedAt: string;
 };
 
+export type Model = {
+  id: string;
+  tenantId: string;
+  kindId: string;
+  kindVersionId: string;
+  slug: string;
+  body: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+};
+
 async function call<T>(path: string): Promise<T> {
   const token = getToken();
   if (!token) throw new Error("not signed in");
@@ -37,4 +48,6 @@ async function call<T>(path: string): Promise<T> {
 export const api = {
   tenant: () => call<Tenant>("/tenant"),
   kinds: () => call<Kind[]>("/kinds"),
+  models: (kindId: string) =>
+    call<Model[]>(`/kinds/${encodeURIComponent(kindId)}/models`),
 };
