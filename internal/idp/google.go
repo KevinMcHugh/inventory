@@ -64,8 +64,9 @@ func (h *Handler) googleStart(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	returnTo := q.Get("return_to")
+	invite := q.Get("invite")
 
-	state, err := h.StartIntent(r.Context(), googleProvider, returnTo, pending)
+	state, err := h.StartIntent(r.Context(), googleProvider, returnTo, pending, invite)
 	if err != nil {
 		http.Error(w, "could not start login: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -133,8 +134,16 @@ func (h *Handler) googleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tenantID, err := h.ResolveTenant(r.Context(), info)
+	inviteCode := ""
+	if intent.InviteCode != nil {
+		inviteCode = *intent.InviteCode
+	}
+	tenantID, err := h.ResolveTenant(r.Context(), info, inviteCode)
 	if err != nil {
+		if errors.Is(err, ErrInviteRequired) || errors.Is(err, ErrInviteInvalid) {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
 		http.Error(w, "identity resolution failed: "+err.Error(), http.StatusInternalServerError)
 		return
 	}

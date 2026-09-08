@@ -77,8 +77,9 @@ func (q *Queries) GetAPIKey(ctx context.Context, id string) (ApiKey, error) {
 }
 
 const getAPIKeyByHash = `-- name: GetAPIKeyByHash :one
-SELECT id, tenant_id, name, key_hash, last_used_at, created_at, updated_at, deleted_at FROM api_keys
-WHERE key_hash = $1 AND deleted_at IS NULL
+SELECT api_keys.id, api_keys.tenant_id, api_keys.name, api_keys.key_hash, api_keys.last_used_at, api_keys.created_at, api_keys.updated_at, api_keys.deleted_at FROM api_keys
+JOIN tenants ON tenants.id = api_keys.tenant_id AND tenants.deleted_at IS NULL
+WHERE key_hash = $1 AND api_keys.deleted_at IS NULL
 `
 
 func (q *Queries) GetAPIKeyByHash(ctx context.Context, keyHash string) (ApiKey, error) {

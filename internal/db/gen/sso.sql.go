@@ -14,7 +14,7 @@ import (
 const consumeSSOLoginIntent = `-- name: ConsumeSSOLoginIntent :one
 DELETE FROM sso_login_intents
 WHERE state = $1 AND expires_at > NOW()
-RETURNING state, provider, return_to, client_id, redirect_uri, code_challenge, code_challenge_method, downstream_state, scope, expires_at, created_at
+RETURNING state, provider, return_to, client_id, redirect_uri, code_challenge, code_challenge_method, downstream_state, scope, expires_at, created_at, invite_code
 `
 
 func (q *Queries) ConsumeSSOLoginIntent(ctx context.Context, state string) (SsoLoginIntent, error) {
@@ -32,6 +32,7 @@ func (q *Queries) ConsumeSSOLoginIntent(ctx context.Context, state string) (SsoL
 		&i.Scope,
 		&i.ExpiresAt,
 		&i.CreatedAt,
+		&i.InviteCode,
 	)
 	return i, err
 }
@@ -40,9 +41,10 @@ const createSSOLoginIntent = `-- name: CreateSSOLoginIntent :one
 INSERT INTO sso_login_intents (
     state, provider, return_to,
     client_id, redirect_uri, code_challenge, code_challenge_method, downstream_state, scope,
+    invite_code,
     expires_at
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-RETURNING state, provider, return_to, client_id, redirect_uri, code_challenge, code_challenge_method, downstream_state, scope, expires_at, created_at
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+RETURNING state, provider, return_to, client_id, redirect_uri, code_challenge, code_challenge_method, downstream_state, scope, expires_at, created_at, invite_code
 `
 
 type CreateSSOLoginIntentParams struct {
@@ -55,6 +57,7 @@ type CreateSSOLoginIntentParams struct {
 	CodeChallengeMethod *string            `json:"code_challenge_method"`
 	DownstreamState     *string            `json:"downstream_state"`
 	Scope               *string            `json:"scope"`
+	InviteCode          *string            `json:"invite_code"`
 	ExpiresAt           pgtype.Timestamptz `json:"expires_at"`
 }
 
@@ -69,6 +72,7 @@ func (q *Queries) CreateSSOLoginIntent(ctx context.Context, arg CreateSSOLoginIn
 		arg.CodeChallengeMethod,
 		arg.DownstreamState,
 		arg.Scope,
+		arg.InviteCode,
 		arg.ExpiresAt,
 	)
 	var i SsoLoginIntent
@@ -84,6 +88,7 @@ func (q *Queries) CreateSSOLoginIntent(ctx context.Context, arg CreateSSOLoginIn
 		&i.Scope,
 		&i.ExpiresAt,
 		&i.CreatedAt,
+		&i.InviteCode,
 	)
 	return i, err
 }

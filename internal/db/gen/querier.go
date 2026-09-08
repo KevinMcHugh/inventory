@@ -9,9 +9,15 @@ import (
 )
 
 type Querier interface {
+	// ClaimInviteByHash reserves an invite for later linking. It atomically marks
+	// used_at NOW() so a race between two concurrent callbacks resolves cleanly.
+	// The identity id is filled in afterwards via SetInviteUsedBy.
+	ClaimInviteByHash(ctx context.Context, codeHash string) (Invite, error)
+	ConsumeInviteByHash(ctx context.Context, arg ConsumeInviteByHashParams) (Invite, error)
 	ConsumeOAuthCode(ctx context.Context, codeHash string) (OauthCode, error)
 	ConsumeSSOLoginIntent(ctx context.Context, state string) (SsoLoginIntent, error)
 	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (ApiKey, error)
+	CreateInvite(ctx context.Context, arg CreateInviteParams) (Invite, error)
 	CreateKind(ctx context.Context, arg CreateKindParams) (Kind, error)
 	CreateKindVersion(ctx context.Context, arg CreateKindVersionParams) (KindVersion, error)
 	CreateModel(ctx context.Context, arg CreateModelParams) (Model, error)
@@ -37,11 +43,13 @@ type Querier interface {
 	GetTenant(ctx context.Context, id string) (Tenant, error)
 	GetUserIdentityByProviderSubject(ctx context.Context, arg GetUserIdentityByProviderSubjectParams) (UserIdentity, error)
 	ListAPIKeysByTenant(ctx context.Context, tenantID string) ([]ApiKey, error)
+	ListActiveInvites(ctx context.Context) ([]Invite, error)
 	ListKindVersionsByKind(ctx context.Context, kindID string) ([]KindVersion, error)
 	ListKindsByTenant(ctx context.Context, tenantID string) ([]Kind, error)
 	ListModelsByKind(ctx context.Context, arg ListModelsByKindParams) ([]Model, error)
 	ListTenants(ctx context.Context) ([]Tenant, error)
 	PurgeExpiredSSOIntents(ctx context.Context) error
+	SetInviteUsedBy(ctx context.Context, arg SetInviteUsedByParams) error
 	TouchAPIKey(ctx context.Context, id string) error
 	TouchUserIdentity(ctx context.Context, arg TouchUserIdentityParams) error
 	UpdateKind(ctx context.Context, arg UpdateKindParams) (Kind, error)

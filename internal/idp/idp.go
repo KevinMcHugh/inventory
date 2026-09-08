@@ -84,11 +84,15 @@ type UserInfo struct {
 	DisplayName string
 }
 
-// ResolveTenant looks up (or, first login, creates) the tenant that owns
-// this identity. Returns the tenant id ready to be embedded in an access
-// token. Idempotent: repeat calls for the same (provider, subject) resolve
-// to the same tenant.
-func (h *Handler) ResolveTenant(ctx context.Context, info UserInfo) (string, error) {
+// ResolveTenant looks up (or, first login, creates + links) the tenant that
+// owns this identity. Returns the tenant id ready to be embedded in an
+// access token. Idempotent: repeat calls for the same (provider, subject)
+// resolve to the same tenant.
+//
+// For unknown identities, a valid invite code MUST be provided. The invite
+// either names a tenant to link into or leaves it unspecified, in which
+// case a fresh tenant is created for the new identity.
+func (h *Handler) ResolveTenant(ctx context.Context, info UserInfo, inviteCode string) (string, error) {
 	// Fast path: known identity.
 	row, err := h.Q.GetUserIdentityByProviderSubject(ctx, dbgen.GetUserIdentityByProviderSubjectParams{
 		Provider: info.Provider,
@@ -103,30 +107,61 @@ func (h *Handler) ResolveTenant(ctx context.Context, info UserInfo) (string, err
 		return row.TenantID, nil
 	}
 
-	// First login: fresh tenant + identity row.
-	tenantName := info.DisplayName
-	if tenantName == "" {
-		tenantName = info.Email
+	// Unknown identity: require + claim an invite.
+	if inviteCode == "" {
+		return "", ErrInviteRequired
 	}
-	tenant, err := h.Q.CreateTenant(ctx, dbgen.CreateTenantParams{
-		ID:   xid.New().String(),
-		Name: tenantName,
-	})
+	invite, err := h.Q.ClaimInviteByHash(ctx, HashInvite(inviteCode))
 	if err != nil {
-		return "", err
+		return "", ErrInviteInvalid
 	}
-	if _, err := h.Q.CreateUserIdentity(ctx, dbgen.CreateUserIdentityParams{
+
+	// Determine target tenant: prefer invite.tenant_id, else create fresh.
+	tenantID := ""
+	if invite.TenantID != nil {
+		tenantID = *invite.TenantID
+	} else {
+		tenantName := info.DisplayName
+		if tenantName == "" {
+			tenantName = info.Email
+		}
+		tenant, err := h.Q.CreateTenant(ctx, dbgen.CreateTenantParams{
+			ID:   xid.New().String(),
+			Name: tenantName,
+		})
+		if err != nil {
+			return "", err
+		}
+		tenantID = tenant.ID
+	}
+
+	identity, err := h.Q.CreateUserIdentity(ctx, dbgen.CreateUserIdentityParams{
 		ID:          xid.New().String(),
-		TenantID:    tenant.ID,
+		TenantID:    tenantID,
 		Provider:    info.Provider,
 		Subject:     info.Subject,
 		Email:       info.Email,
 		DisplayName: nullableString(info.DisplayName),
-	}); err != nil {
+	})
+	if err != nil {
 		return "", err
 	}
-	return tenant.ID, nil
+	// Fill in the audit trail on the invite row.
+	usedBy := identity.ID
+	_ = h.Q.SetInviteUsedBy(ctx, dbgen.SetInviteUsedByParams{
+		ID:                invite.ID,
+		UsedByIdentityID: &usedBy,
+	})
+	return tenantID, nil
 }
+
+// ErrInviteRequired is returned when a Google login lands with an unknown
+// (provider, subject) and no invite was carried through the flow.
+var ErrInviteRequired = errors.New("sso: invite required for first login")
+
+// ErrInviteInvalid is returned when the presented invite code is unknown,
+// already used, expired, or revoked.
+var ErrInviteInvalid = errors.New("sso: invite is invalid or already used")
 
 // -----------------------------------------------------------------------------
 // Intent state store (shared across providers)
@@ -145,21 +180,24 @@ type PendingAuthzRequest struct {
 }
 
 // StartIntent inserts a fresh intent row and returns the state token to
-// send to the IDP.
+// send to the IDP. inviteCode may be empty; it is only consulted when the
+// callback lands with an unknown identity.
 func (h *Handler) StartIntent(
 	ctx context.Context,
 	provider string,
 	returnTo string,
 	pending *PendingAuthzRequest,
+	inviteCode string,
 ) (string, error) {
 	state, err := randomState()
 	if err != nil {
 		return "", err
 	}
 	arg := dbgen.CreateSSOLoginIntentParams{
-		State:     state,
-		Provider:  provider,
-		ExpiresAt: pgTs(time.Now().Add(IntentTTL)),
+		State:      state,
+		Provider:   provider,
+		ExpiresAt:  pgTs(time.Now().Add(IntentTTL)),
+		InviteCode: nullableString(inviteCode),
 	}
 	if returnTo != "" {
 		arg.ReturnTo = &returnTo

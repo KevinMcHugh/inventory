@@ -39,8 +39,10 @@ func main() {
 		err = runBootstrap(os.Args[2:])
 	case "keys":
 		err = runKeys(os.Args[2:])
+	case "invites":
+		err = runInvites(os.Args[2:])
 	default:
-		err = fmt.Errorf("unknown command %q; use one of: serve, bootstrap, keys", cmd)
+		err = fmt.Errorf("unknown command %q; use one of: serve, bootstrap, keys, invites", cmd)
 	}
 	if err != nil {
 		slog.Error("command failed", "err", err)

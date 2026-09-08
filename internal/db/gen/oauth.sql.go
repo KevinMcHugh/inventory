@@ -176,10 +176,11 @@ func (q *Queries) GetOAuthClient(ctx context.Context, id string) (OauthClient, e
 }
 
 const getOAuthTokenByHash = `-- name: GetOAuthTokenByHash :one
-SELECT id, token_hash, client_id, tenant_id, scope, expires_at, revoked_at, created_at FROM oauth_tokens
+SELECT oauth_tokens.id, oauth_tokens.token_hash, oauth_tokens.client_id, oauth_tokens.tenant_id, oauth_tokens.scope, oauth_tokens.expires_at, oauth_tokens.revoked_at, oauth_tokens.created_at FROM oauth_tokens
+JOIN tenants ON tenants.id = oauth_tokens.tenant_id AND tenants.deleted_at IS NULL
 WHERE token_hash = $1
-  AND revoked_at IS NULL
-  AND expires_at > NOW()
+  AND oauth_tokens.revoked_at IS NULL
+  AND oauth_tokens.expires_at > NOW()
 `
 
 func (q *Queries) GetOAuthTokenByHash(ctx context.Context, tokenHash string) (OauthToken, error) {

@@ -19,6 +19,20 @@ type ApiKey struct {
 	DeletedAt  pgtype.Timestamptz `json:"deleted_at"`
 }
 
+type Invite struct {
+	ID                  string             `json:"id"`
+	CodeHash            string             `json:"code_hash"`
+	TenantID            *string            `json:"tenant_id"`
+	CreatedByIdentityID *string            `json:"created_by_identity_id"`
+	ExpiresAt           pgtype.Timestamptz `json:"expires_at"`
+	UsedAt              pgtype.Timestamptz `json:"used_at"`
+	UsedByIdentityID    *string            `json:"used_by_identity_id"`
+	Note                *string            `json:"note"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt           pgtype.Timestamptz `json:"deleted_at"`
+}
+
 type Kind struct {
 	ID          string             `json:"id"`
 	TenantID    string             `json:"tenant_id"`
@@ -96,6 +110,7 @@ type SsoLoginIntent struct {
 	Scope               *string            `json:"scope"`
 	ExpiresAt           pgtype.Timestamptz `json:"expires_at"`
 	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	InviteCode          *string            `json:"invite_code"`
 }
 
 type Tenant struct {

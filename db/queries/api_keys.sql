@@ -4,8 +4,9 @@ VALUES ($1, $2, $3, $4)
 RETURNING *;
 
 -- name: GetAPIKeyByHash :one
-SELECT * FROM api_keys
-WHERE key_hash = $1 AND deleted_at IS NULL;
+SELECT api_keys.* FROM api_keys
+JOIN tenants ON tenants.id = api_keys.tenant_id AND tenants.deleted_at IS NULL
+WHERE key_hash = $1 AND api_keys.deleted_at IS NULL;
 
 -- name: TouchAPIKey :exec
 UPDATE api_keys

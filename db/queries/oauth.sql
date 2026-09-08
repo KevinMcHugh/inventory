@@ -28,7 +28,8 @@ VALUES ($1, $2, sqlc.narg(client_id), $3, $4, $5)
 RETURNING *;
 
 -- name: GetOAuthTokenByHash :one
-SELECT * FROM oauth_tokens
+SELECT oauth_tokens.* FROM oauth_tokens
+JOIN tenants ON tenants.id = oauth_tokens.tenant_id AND tenants.deleted_at IS NULL
 WHERE token_hash = $1
-  AND revoked_at IS NULL
-  AND expires_at > NOW();
+  AND oauth_tokens.revoked_at IS NULL
+  AND oauth_tokens.expires_at > NOW();

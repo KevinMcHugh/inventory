@@ -19,8 +19,9 @@ WHERE id = $1;
 INSERT INTO sso_login_intents (
     state, provider, return_to,
     client_id, redirect_uri, code_challenge, code_challenge_method, downstream_state, scope,
+    invite_code,
     expires_at
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 RETURNING *;
 
 -- name: ConsumeSSOLoginIntent :one

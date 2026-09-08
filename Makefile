@@ -1,4 +1,4 @@
-.PHONY: dev generate migrate bootstrap keys-list keys-create keys-rotate run build help
+.PHONY: dev generate migrate bootstrap keys-list keys-create keys-rotate invites-create invites-list run build help
 
 dev: migrate ## Migrate, then start the API and web dev server together
 	@echo ">> API on :8080, web on :5173 (Ctrl+C to stop both)"
@@ -29,6 +29,12 @@ keys-create: ## Mint a new api key for a tenant (usage: make keys-create TENANT=
 keys-rotate: ## Rotate an api key by id (usage: make keys-rotate KEY_ID=<id>)
 	@if [ -z "$(KEY_ID)" ]; then echo "usage: make keys-rotate KEY_ID=<key id>"; exit 1; fi
 	go run ./cmd/server keys rotate --key-id "$(KEY_ID)"
+
+invites-create: ## Mint a single-use invite (optional TENANT=<xid> links to existing tenant)
+	go run ./cmd/server invites create $(if $(TENANT),--tenant "$(TENANT)") $(if $(NOTE),--note "$(NOTE)")
+
+invites-list: ## List outstanding (unredeemed, non-expired) invites
+	go run ./cmd/server invites list
 
 run: ## Run just the API server (no web, no migrations)
 	go run ./cmd/server
