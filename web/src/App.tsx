@@ -75,6 +75,8 @@ export default function App() {
             </section>
           )}
 
+          <McpEndpoint />
+
           <section style={sectionStyle}>
             <h2 style={{ margin: "0 0 0.5rem 0", fontSize: "1rem" }}>Kinds</h2>
             {kinds === null && <p style={mutedStyle}>loading…</p>}
@@ -100,6 +102,44 @@ export default function App() {
         </>
       )}
     </main>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// MCP endpoint card
+// -----------------------------------------------------------------------------
+
+function McpEndpoint() {
+  const url = window.location.origin + "/mcp";
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // ignore — clipboard blocked (http, insecure context, etc.)
+    }
+  }
+
+  return (
+    <section style={sectionStyle}>
+      <h2 style={{ margin: "0 0 0.5rem 0", fontSize: "1rem" }}>Connect an MCP client</h2>
+      <p style={mutedStyle}>
+        Point Claude (or any MCP client) here. Pick <em>Always required</em> and
+        {" "}<em>No client ID — register one automatically</em>. You will be sent
+        back to this login screen — paste your <code style={codeStyle}>inv_</code> api key to grant access.
+      </p>
+      <div style={endpointRowStyle}>
+        <code style={{ ...codeStyle, flex: 1, padding: "0.5rem 0.6rem", fontSize: "0.9rem", overflowX: "auto" }}>
+          {url}
+        </code>
+        <button style={buttonStyle} onClick={copy}>
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -170,4 +210,11 @@ const listStyle: React.CSSProperties = {
 const listItemStyle: React.CSSProperties = {
   padding: "0.6rem 0",
   borderBottom: "1px solid #f0f0f0",
+};
+
+const endpointRowStyle: React.CSSProperties = {
+  display: "flex",
+  gap: "0.5rem",
+  alignItems: "stretch",
+  marginTop: "0.75rem",
 };
