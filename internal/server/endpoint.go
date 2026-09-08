@@ -33,6 +33,26 @@ func Run[Req, M, VM, Res any](ctx context.Context, e Endpoint[Req, M, VM, Res], 
 	return e.Render(e.Build(m)), nil
 }
 
+// Interactor is the Interact+Build half of Endpoint, without Render. Any
+// Endpoint satisfies it structurally, so callers outside the HTTP layer
+// (namely MCP tools) reuse an endpoint's Store-backed domain logic and
+// M->VM transformation while rendering their own tool-shaped output instead
+// of an apigen response object.
+type Interactor[Req, M, VM any] interface {
+	Interact(ctx context.Context, req Req) (M, error)
+	Build(m M) VM
+}
+
+// BuildViewModel drives Interact then Build, stopping short of Render.
+func BuildViewModel[Req, M, VM any](ctx context.Context, e Interactor[Req, M, VM], req Req) (VM, error) {
+	m, err := e.Interact(ctx, req)
+	if err != nil {
+		var zero VM
+		return zero, err
+	}
+	return e.Build(m), nil
+}
+
 // ErrNotFound signals that a requested resource does not exist. Handlers map
 // this (and pgx.ErrNoRows) to a 404 response.
 var ErrNotFound = errors.New("not found")

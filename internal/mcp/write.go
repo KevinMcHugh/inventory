@@ -2,13 +2,12 @@ package mcp
 
 import (
 	"context"
-	"encoding/json"
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/rs/xid"
 
-	"github.com/KevinMcHugh/inventory/internal/auth"
+	apigen "github.com/KevinMcHugh/inventory/internal/api/gen"
 	dbgen "github.com/KevinMcHugh/inventory/internal/db/gen"
+	"github.com/KevinMcHugh/inventory/internal/server"
 	"github.com/KevinMcHugh/inventory/internal/server/kinds"
 	"github.com/KevinMcHugh/inventory/internal/server/models"
 )
@@ -68,6 +67,11 @@ type DeleteModelOutput struct {
 
 // -----------------------------------------------------------------------------
 // Registration
+//
+// Each tool builds the same Endpoint the HTTP handler for the equivalent
+// operation uses, drives it through server.BuildViewModel (Interact + Build,
+// the Store-backed domain logic and M->VM transform), and renders the
+// resulting view-model into its own Output struct in place of Render.
 // -----------------------------------------------------------------------------
 
 func registerWriteTools(s *mcpsdk.Server, q dbgen.Querier) {
@@ -75,127 +79,81 @@ func registerWriteTools(s *mcpsdk.Server, q dbgen.Querier) {
 		Name:        "create_kind",
 		Description: "Create a new kind (data type) under the current tenant.",
 	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, in CreateKindInput) (*mcpsdk.CallToolResult, CreateKindOutput, error) {
-		tenantID, err := auth.TenantID(ctx)
-		if err != nil {
-			return nil, CreateKindOutput{}, err
-		}
-		k, err := q.CreateKind(ctx, dbgen.CreateKindParams{
-			ID:          xid.New().String(),
-			TenantID:    tenantID,
-			Name:        in.Name,
-			Description: in.Description,
+		vm, err := server.BuildViewModel(ctx, kinds.CreateEndpoint{Store: q}, apigen.CreateKindRequestObject{
+			Body: &apigen.CreateKindJSONRequestBody{
+				Name:        in.Name,
+				Description: in.Description,
+			},
 		})
 		if err != nil {
 			return nil, CreateKindOutput{}, err
 		}
-		return nil, CreateKindOutput{Kind: kinds.ToViewModel(k)}, nil
+		return nil, CreateKindOutput{Kind: vm}, nil
 	})
 
 	mcpsdk.AddTool(s, &mcpsdk.Tool{
 		Name:        "create_kind_version",
 		Description: "Register a new schema version for a kind. Later models can pin to it, or default to the latest.",
 	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, in CreateKindVersionInput) (*mcpsdk.CallToolResult, CreateKindVersionOutput, error) {
-		schemaBytes, err := json.Marshal(in.Schema)
-		if err != nil {
-			return nil, CreateKindVersionOutput{}, err
-		}
-		v, err := q.CreateKindVersion(ctx, dbgen.CreateKindVersionParams{
-			ID:     xid.New().String(),
-			KindID: in.KindID,
-			Schema: schemaBytes,
+		vm, err := server.BuildViewModel(ctx, kinds.CreateVersionEndpoint{Store: q}, apigen.CreateKindVersionRequestObject{
+			KindId: in.KindID,
+			Body: &apigen.CreateKindVersionJSONRequestBody{
+				Schema: in.Schema,
+			},
 		})
 		if err != nil {
 			return nil, CreateKindVersionOutput{}, err
 		}
-		return nil, CreateKindVersionOutput{Version: kinds.ToVersionViewModel(v)}, nil
+		return nil, CreateKindVersionOutput{Version: vm}, nil
 	})
 
 	mcpsdk.AddTool(s, &mcpsdk.Tool{
 		Name:        "create_model",
 		Description: "Store a new model. If kindVersionId is omitted, the latest version of the kind is used.",
 	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, in CreateModelInput) (*mcpsdk.CallToolResult, CreateModelOutput, error) {
-		tenantID, err := auth.TenantID(ctx)
-		if err != nil {
-			return nil, CreateModelOutput{}, err
-		}
-		versionID, err := resolveVersion(ctx, q, in.KindID, in.KindVersionID)
-		if err != nil {
-			return nil, CreateModelOutput{}, err
-		}
-		bodyBytes, err := json.Marshal(in.Body)
-		if err != nil {
-			return nil, CreateModelOutput{}, err
-		}
-		m, err := q.CreateModel(ctx, dbgen.CreateModelParams{
-			ID:            xid.New().String(),
-			TenantID:      tenantID,
-			KindID:        in.KindID,
-			KindVersionID: versionID,
-			Slug:          in.Slug,
-			Body:          bodyBytes,
+		vm, err := server.BuildViewModel(ctx, models.CreateEndpoint{Store: q}, apigen.CreateModelRequestObject{
+			KindId: in.KindID,
+			Body: &apigen.CreateModelJSONRequestBody{
+				Slug:          in.Slug,
+				Body:          in.Body,
+				KindVersionId: in.KindVersionID,
+			},
 		})
 		if err != nil {
 			return nil, CreateModelOutput{}, err
 		}
-		return nil, CreateModelOutput{Model: models.ToViewModel(m)}, nil
+		return nil, CreateModelOutput{Model: vm}, nil
 	})
 
 	mcpsdk.AddTool(s, &mcpsdk.Tool{
 		Name:        "update_model",
 		Description: "Replace a model body by kind and slug within the current tenant.",
 	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, in UpdateModelInput) (*mcpsdk.CallToolResult, UpdateModelOutput, error) {
-		tenantID, err := auth.TenantID(ctx)
-		if err != nil {
-			return nil, UpdateModelOutput{}, err
-		}
-		versionID, err := resolveVersion(ctx, q, in.KindID, in.KindVersionID)
-		if err != nil {
-			return nil, UpdateModelOutput{}, err
-		}
-		bodyBytes, err := json.Marshal(in.Body)
-		if err != nil {
-			return nil, UpdateModelOutput{}, err
-		}
-		m, err := q.UpdateModelBySlug(ctx, dbgen.UpdateModelBySlugParams{
-			TenantID:      tenantID,
-			KindID:        in.KindID,
-			Slug:          in.Slug,
-			Body:          bodyBytes,
-			KindVersionID: versionID,
+		vm, err := server.BuildViewModel(ctx, models.UpdateEndpoint{Store: q}, apigen.UpdateModelRequestObject{
+			KindId: in.KindID,
+			Slug:   in.Slug,
+			Body: &apigen.UpdateModelJSONRequestBody{
+				Body:          in.Body,
+				KindVersionId: in.KindVersionID,
+			},
 		})
 		if err != nil {
 			return nil, UpdateModelOutput{}, err
 		}
-		return nil, UpdateModelOutput{Model: models.ToViewModel(m)}, nil
+		return nil, UpdateModelOutput{Model: vm}, nil
 	})
 
 	mcpsdk.AddTool(s, &mcpsdk.Tool{
 		Name:        "delete_model",
 		Description: "Soft-delete a model by kind and slug within the current tenant.",
 	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, in DeleteModelInput) (*mcpsdk.CallToolResult, DeleteModelOutput, error) {
-		tenantID, err := auth.TenantID(ctx)
-		if err != nil {
-			return nil, DeleteModelOutput{}, err
-		}
-		err = q.DeleteModelBySlug(ctx, dbgen.DeleteModelBySlugParams{
-			TenantID: tenantID,
-			KindID:   in.KindID,
-			Slug:     in.Slug,
+		deleted, err := server.BuildViewModel(ctx, models.DeleteEndpoint{Store: q}, apigen.DeleteModelRequestObject{
+			KindId: in.KindID,
+			Slug:   in.Slug,
 		})
 		if err != nil {
 			return nil, DeleteModelOutput{}, err
 		}
-		return nil, DeleteModelOutput{Deleted: true}, nil
+		return nil, DeleteModelOutput{Deleted: deleted}, nil
 	})
-}
-
-func resolveVersion(ctx context.Context, q dbgen.Querier, kindID string, provided *string) (string, error) {
-	if provided != nil && *provided != "" {
-		return *provided, nil
-	}
-	v, err := q.GetLatestKindVersion(ctx, kindID)
-	if err != nil {
-		return "", err
-	}
-	return v.ID, nil
 }

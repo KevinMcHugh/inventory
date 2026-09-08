@@ -31,9 +31,9 @@ Running one server means MCP and REST share the same pgx pool, tenant model, and
 
 The split is by mutation semantics, not resource. A future auth layer can gate `write.go` more tightly than `read.go`.
 
-### Shared view types
+### Shared endpoint logic
 
-MCP does not maintain a parallel view layer. Tool Output structs embed the endpoint packages' view-model types directly — `tenants.ViewModel`, `kinds.ViewModel`, `kinds.VersionViewModel`, `models.ViewModel` — and use the exported `ToViewModel` / `ToVersionViewModel` converters. Add a new field to a view-model in `internal/server/<resource>/` and it appears in MCP responses on the next request; there is no second place to update.
+MCP tools do not reimplement domain logic. Each tool builds the same `Endpoint` the equivalent HTTP handler uses (e.g. `kinds.ListEndpoint`, `models.CreateEndpoint`) and drives it with `server.BuildViewModel(ctx, endpoint, req)`, which runs `Interact` (the Store-backed DB work, including tenant scoping via `auth.TenantID`) and `Build` (the pure M→VM transform) — the same MVVM flow as REST, minus `Render`. `Render` is skipped because MCP output shapes are typed tool structs, not apigen HTTP response objects; each tool wraps the returned view-model in its own `Output` struct instead. Add or change behavior in an endpoint's `Interact`/`Build` in `internal/server/<resource>/` and both REST and MCP pick it up — there is no second place to update.
 
 ## Tool contract
 
@@ -83,8 +83,8 @@ When `kindVersionId` is omitted on model create/update, the tool resolves the la
 
 1. Add Input/Output structs in the appropriate file (`read.go` for queries, `write.go` for mutations).
 2. Register the tool inside `registerReadTools` or `registerWriteTools` with `mcpsdk.AddTool`.
-3. The handler calls `dbgen.Querier` directly and converts rows via the shared view helpers in `mcp.go`.
-4. If the tool returns a domain entity that other tools also return, extend the shared `*View` structs rather than adding a parallel one.
+3. The handler builds the apigen request object for the matching HTTP operation from the tool's Input, calls `server.BuildViewModel(ctx, resource.SomeEndpoint{Store: q}, req)`, and wraps the returned view-model in the tool's Output struct. If no matching HTTP endpoint exists yet, add one in `internal/server/<resource>/` first (see @docs/adding-a-resource.md) rather than duplicating Store calls in the MCP handler.
+4. If the tool returns a domain entity that other tools also return, reuse the existing view-model type from that resource's package rather than adding a parallel one.
 
 ## Testing locally
 

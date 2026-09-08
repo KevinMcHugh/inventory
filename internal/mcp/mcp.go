@@ -2,13 +2,13 @@
 // so Claude (or any MCP client) can list and manipulate models.
 //
 // Tools declare typed input and output structs; jsonschema is inferred from
-// struct tags. Each tool captures the dbgen.Querier in a closure — the same
-// store the HTTP endpoints use, so both interfaces see identical data.
-//
-// Output structs embed the view-model types from the endpoint packages
-// (tenants.ViewModel, kinds.ViewModel, etc.). Those types own the M→VM
-// conversion; MCP tools call the exported ToViewModel helpers rather than
-// maintaining a parallel view layer.
+// struct tags. Each tool builds the same Endpoint the equivalent HTTP handler
+// uses (from internal/server/<resource>) and drives it with
+// server.BuildViewModel, which runs Interact (the Store-backed domain logic,
+// including tenant scoping via auth.TenantID) and Build (the pure M→VM
+// transform) — the same MVVM flow as the REST API, stopping short of Render
+// since MCP output shapes aren't apigen response objects. Tools wrap the
+// resulting view-model in their own Output struct instead.
 package mcp
 
 import (
