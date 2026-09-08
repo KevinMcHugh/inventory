@@ -10,6 +10,7 @@ import { Layout } from "./Layout";
 import { Callback } from "./pages/Callback";
 import { Home } from "./pages/Home";
 import { KindPage } from "./pages/KindPage";
+import { ModelPage } from "./pages/ModelPage";
 import { getToken, startLogin } from "./oauth";
 import {
   mutedStyle,
@@ -38,6 +39,16 @@ export default function App() {
             <AuthGate>
               <Layout wide>
                 <KindPage />
+              </Layout>
+            </AuthGate>
+          }
+        />
+        <Route
+          path="/kinds/:kindId/models/:slug"
+          element={
+            <AuthGate>
+              <Layout>
+                <ModelPage />
               </Layout>
             </AuthGate>
           }

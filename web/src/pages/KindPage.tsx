@@ -1,6 +1,5 @@
 import {
   createColumnHelper,
-  flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
@@ -11,7 +10,7 @@ import {
   type Table,
   type VisibilityState,
 } from "@tanstack/react-table";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import {
@@ -22,17 +21,20 @@ import {
   type SchemaField,
 } from "../api";
 import {
+  buttonStyle,
   codeStyle,
   errorStyle,
   inputStyle,
   linkStyle,
   mutedStyle,
   sectionStyle,
-  tableStyle,
-  tdStyle,
-  thSortableStyle,
-  thStyle,
 } from "../styles";
+import {
+  effectiveFields,
+  fieldLabel,
+  fmtDateTime,
+  renderCell,
+} from "../schema";
 
 const columnHelper = createColumnHelper<Model>();
 
@@ -71,50 +73,38 @@ export function KindPage() {
       .catch((e) => setError(String(e)));
   }, [kindId]);
 
-  // Compute effective column list (schema-declared + observed body keys).
-  const fieldById = useMemo(() => {
-    const map = new Map<string, SchemaField>();
-    for (const f of schema?.fields ?? []) map.set(f.key, f);
-    return map;
-  }, [schema]);
+  const fields = useMemo(
+    () => (models && schema ? effectiveFields(models, schema) : []),
+    [models, schema],
+  );
 
-  const orderedFieldKeys = useMemo(() => {
-    if (!schema) return [];
-    return schema.fields.map((f) => f.key);
-  }, [schema]);
+  const fieldByKey = useMemo(() => {
+    const m = new Map<string, SchemaField>();
+    for (const f of fields) m.set(f.key, f);
+    return m;
+  }, [fields]);
 
-  const tailBodyKeys = useMemo(() => {
-    if (!models) return [];
-    const set = new Set<string>();
-    for (const m of models) {
-      if (m.body && typeof m.body === "object") {
-        for (const k of Object.keys(m.body)) {
-          if (!fieldById.has(k)) set.add(k);
-        }
-      }
-    }
-    return [...set].sort();
-  }, [models, fieldById]);
-
-  // Once schema + models arrive, seed columnVisibility with the pinned
-  // defaults unless localStorage already has a per-kind override.
+  // Seed column visibility once both schema and models arrive.
   useEffect(() => {
     if (visibilityLoaded || !schema || !models) return;
     const stored = loadVisibility(kindId);
     if (stored) {
       setColumnVisibility(stored);
     } else {
-      const v: VisibilityState = { slug: true, id: false, createdAt: false, updatedAt: false };
+      const v: VisibilityState = { slug: true };
       for (const f of schema.fields) {
         v[`body.${f.key}`] = Boolean(f.pinned);
       }
-      for (const k of tailBodyKeys) {
-        v[`body.${k}`] = false;
+      // any tail body key defaults off
+      for (const f of fields) {
+        if (!(f.key in (schema.fields.find((sf) => sf.key === f.key) ?? {}))) {
+          v[`body.${f.key}`] = v[`body.${f.key}`] ?? false;
+        }
       }
       setColumnVisibility(v);
     }
     setVisibilityLoaded(true);
-  }, [kindId, schema, models, tailBodyKeys, visibilityLoaded]);
+  }, [kindId, schema, models, fields, visibilityLoaded]);
 
   useEffect(() => {
     if (!visibilityLoaded) return;
@@ -123,34 +113,11 @@ export function KindPage() {
 
   const columns = useMemo<ColumnDef<Model, any>[]>(() => {
     const base: ColumnDef<Model, any>[] = [
-      columnHelper.accessor("slug", {
-        header: "Slug",
-        cell: (info) => <strong>{info.getValue()}</strong>,
-      }),
+      columnHelper.accessor("slug", { header: "Slug" }),
     ];
-    const bodyCols: ColumnDef<Model, any>[] = [...orderedFieldKeys, ...tailBodyKeys].map(
-      (key) => makeBodyColumn(key, fieldById.get(key)),
-    );
-    const tail: ColumnDef<Model, any>[] = [
-      columnHelper.accessor("createdAt", {
-        header: "Created",
-        cell: (info) => (
-          <span style={mutedStyle}>{fmtDateTime(info.getValue())}</span>
-        ),
-      }),
-      columnHelper.accessor("updatedAt", {
-        header: "Updated",
-        cell: (info) => (
-          <span style={mutedStyle}>{fmtDateTime(info.getValue())}</span>
-        ),
-      }),
-      columnHelper.accessor("id", {
-        header: "ID",
-        cell: (info) => <code style={codeStyle}>{info.getValue()}</code>,
-      }),
-    ];
-    return [...base, ...bodyCols, ...tail];
-  }, [orderedFieldKeys, tailBodyKeys, fieldById]);
+    const bodyCols: ColumnDef<Model, any>[] = fields.map((f) => makeBodyColumn(f));
+    return [...base, ...bodyCols];
+  }, [fields]);
 
   const table = useReactTable({
     data: models ?? [],
@@ -165,6 +132,7 @@ export function KindPage() {
     getFilteredRowModel: getFilteredRowModel(),
   });
 
+  const rows = table.getRowModel().rows;
   const filteredCount = table.getFilteredRowModel().rows.length;
 
   const hasActiveFilters =
@@ -174,6 +142,10 @@ export function KindPage() {
     setGlobalFilter("");
     table.resetColumnFilters();
   }
+
+  const filterableFields = fields.filter(
+    (f) => f.type === "enum" || f.type === "date" || f.type === "number" || f.type === "integer",
+  );
 
   return (
     <>
@@ -190,8 +162,16 @@ export function KindPage() {
         {kind && (
           <>
             <div style={mutedStyle}>Kind</div>
-            <div style={{ fontSize: "1.3rem", fontWeight: 600 }}>
-              {kind.name} <code style={codeStyle}>{kind.id}</code>
+            <div style={kindHeaderStyle}>
+              <div style={{ fontSize: "1.3rem", fontWeight: 600 }}>
+                {kind.name} <code style={codeStyle}>{kind.id}</code>
+              </div>
+              <Link
+                to={`/kinds/${kindId}/edit`}
+                style={{ ...buttonStyle, textDecoration: "none" }}
+              >
+                Edit schema
+              </Link>
             </div>
             {kind.description && (
               <p style={{ ...mutedStyle, marginTop: "0.4rem" }}>
@@ -216,87 +196,50 @@ export function KindPage() {
           </h2>
           <input
             type="search"
-            placeholder="Filter…"
+            placeholder="Search…"
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            style={{ ...inputStyle, flex: 1, maxWidth: 320 }}
+            style={{ ...inputStyle, flex: 1, maxWidth: 260 }}
           />
+          <SortControl table={table} fields={fields} />
+          <FieldMenu table={table} fields={fields} />
           {hasActiveFilters && (
-            <button
-              style={{
-                background: "var(--btn-bg)",
-                color: "var(--btn-fg)",
-                border: 0,
-                borderRadius: 6,
-                padding: "0.4rem 0.7rem",
-                fontSize: "0.85rem",
-                cursor: "pointer",
-              }}
-              onClick={resetFilters}
-            >
+            <button style={buttonStyle} onClick={resetFilters}>
               Reset filters
             </button>
           )}
-          <ColumnMenu table={table} fieldById={fieldById} />
+          <Link
+            to={`/kinds/${kindId}/models/new`}
+            style={{ ...primaryLinkStyle, textDecoration: "none" }}
+          >
+            + New
+          </Link>
         </div>
+
+        {filterableFields.length > 0 && (
+          <div style={filterStripStyle}>
+            {filterableFields.map((f) => (
+              <FilterChip key={f.key} field={f} table={table} />
+            ))}
+          </div>
+        )}
 
         {models === null && !error && <p style={mutedStyle}>loading…</p>}
         {models && models.length === 0 && (
           <p style={mutedStyle}>No models in this kind yet.</p>
         )}
         {models && models.length > 0 && (
-          <div style={{ overflowX: "auto" }}>
-            <table style={tableStyle}>
-              <thead>
-                {table.getHeaderGroups().map((hg) => (
-                  <tr key={hg.id}>
-                    {hg.headers.map((h) => {
-                      const canSort = h.column.getCanSort();
-                      const dir = h.column.getIsSorted();
-                      return (
-                        <th
-                          key={h.id}
-                          style={canSort ? thSortableStyle : thStyle}
-                          onClick={
-                            canSort
-                              ? h.column.getToggleSortingHandler()
-                              : undefined
-                          }
-                        >
-                          {flexRender(
-                            h.column.columnDef.header,
-                            h.getContext(),
-                          )}
-                          {dir === "asc" && " ↑"}
-                          {dir === "desc" && " ↓"}
-                        </th>
-                      );
-                    })}
-                  </tr>
-                ))}
-                <tr>
-                  {table.getVisibleLeafColumns().map((col) => (
-                    <th key={col.id} style={filterCellStyle}>
-                      <ColumnFilter column={col} fieldById={fieldById} />
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {table.getRowModel().rows.map((row) => (
-                  <tr key={row.id}>
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} style={tdStyle}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext(),
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div style={gridStyle}>
+            {rows.map((row) => (
+              <Card
+                key={row.original.id}
+                model={row.original}
+                fields={fields}
+                fieldByKey={fieldByKey}
+                visibility={columnVisibility}
+                kindId={kindId}
+              />
+            ))}
           </div>
         )}
       </section>
@@ -305,282 +248,291 @@ export function KindPage() {
 }
 
 // -----------------------------------------------------------------------------
-// Body columns — one per known field, driven by the field's declared type.
+// Card
 // -----------------------------------------------------------------------------
 
-function makeBodyColumn(
-  key: string,
-  field: SchemaField | undefined,
-): ColumnDef<Model, any> {
-  const type = field?.type ?? "text";
-  const header = field?.label || key;
+function Card({
+  model,
+  fields,
+  fieldByKey,
+  visibility,
+  kindId,
+}: {
+  model: Model;
+  fields: SchemaField[];
+  fieldByKey: Map<string, SchemaField>;
+  visibility: VisibilityState;
+  kindId: string;
+}) {
+  const visibleFields = fields.filter(
+    (f) => visibility[`body.${f.key}`] !== false,
+  );
+  const body = model.body ?? {};
+  return (
+    <article style={cardStyle}>
+      <header style={cardHeaderStyle}>
+        <Link
+          to={`/kinds/${kindId}/models/${encodeURIComponent(model.slug)}`}
+          style={{ ...linkStyle, fontWeight: 600, fontSize: "0.95rem" }}
+        >
+          {model.slug}
+        </Link>
+      </header>
+      <div style={cardBodyStyle}>
+        {visibleFields.map((f) => (
+          <div key={f.key} style={fieldRowStyle}>
+            <div style={fieldLabelStyle}>{fieldLabel(f)}</div>
+            <div style={fieldValueStyle}>
+              {renderCell(fieldByKey.get(f.key)?.type ?? f.type, body[f.key])}
+            </div>
+          </div>
+        ))}
+      </div>
+      <footer style={cardFooterStyle}>
+        <span>updated {fmtDateTime(model.updatedAt)}</span>
+      </footer>
+    </article>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// TanStack column builder (needed for filtering/sorting even without a table)
+// -----------------------------------------------------------------------------
+
+function makeBodyColumn(field: SchemaField): ColumnDef<Model, any> {
   const filterFn =
-    type === "enum"
+    field.type === "enum"
       ? enumFilterFn
-      : type === "date"
+      : field.type === "date"
         ? dateFilterFn
-        : type === "number" || type === "integer"
+        : field.type === "number" || field.type === "integer"
           ? numberFilterFn
           : undefined;
-  return columnHelper.accessor((row) => (row.body ?? {})[key], {
-    id: `body.${key}`,
-    header,
-    cell: (info) => renderCellFor(type, info.getValue()),
-    sortingFn: type === "number" || type === "integer" ? numericSort : "auto",
+  return columnHelper.accessor((row) => (row.body ?? {})[field.key], {
+    id: `body.${field.key}`,
+    header: fieldLabel(field),
     filterFn,
+    sortingFn:
+      field.type === "number" || field.type === "integer" ? numericSort : "auto",
   });
 }
 
 // -----------------------------------------------------------------------------
-// Per-column filter widgets
+// Sort control
 // -----------------------------------------------------------------------------
 
-function ColumnFilter({
-  column,
-  fieldById,
-}: {
-  column: any;
-  fieldById: Map<string, SchemaField>;
-}) {
-  const id: string = column.id;
-  if (!id.startsWith("body.")) return null;
-  const key = id.slice(5);
-  const field = fieldById.get(key);
-  const type = field?.type;
-  if (type === "enum") return <EnumFilter column={column} field={field!} />;
-  if (type === "date") return <DateFilter column={column} />;
-  if (type === "number" || type === "integer") return <NumberFilter column={column} />;
-  return null;
-}
-
-function EnumFilter({
-  column,
-  field,
-}: {
-  column: any;
-  field: SchemaField;
-}) {
-  const value = (column.getFilterValue() as string[] | undefined) ?? [];
-  const options = field.values ?? [];
-  const summary =
-    value.length === 0
-      ? "Any"
-      : value.length === 1
-        ? value[0]
-        : `${value.length} selected`;
-  return (
-    <details style={{ position: "relative" }}>
-      <summary style={filterSummaryStyle}>{summary}</summary>
-      <div style={filterMenuStyle}>
-        {options.map((opt) => {
-          const checked = value.includes(opt);
-          return (
-            <label key={opt} style={filterCheckLabelStyle}>
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={(e) => {
-                  const next = e.target.checked
-                    ? [...value, opt]
-                    : value.filter((v) => v !== opt);
-                  column.setFilterValue(next.length ? next : undefined);
-                }}
-              />
-              {opt}
-            </label>
-          );
-        })}
-        {value.length > 0 && (
-          <button
-            type="button"
-            style={filterClearStyle}
-            onClick={() => column.setFilterValue(undefined)}
-          >
-            Clear
-          </button>
-        )}
-      </div>
-    </details>
-  );
-}
-
-function DateFilter({ column }: { column: any }) {
-  const v = (column.getFilterValue() as { from?: string; to?: string } | undefined) ?? {};
-  function update(patch: { from?: string; to?: string }) {
-    const next = { ...v, ...patch };
-    const empty = !next.from && !next.to;
-    column.setFilterValue(empty ? undefined : next);
-  }
-  return (
-    <div style={rangeWrapStyle}>
-      <input
-        type="date"
-        value={v.from ?? ""}
-        onChange={(e) => update({ from: e.target.value || undefined })}
-        style={rangeInputStyle}
-      />
-      <input
-        type="date"
-        value={v.to ?? ""}
-        onChange={(e) => update({ to: e.target.value || undefined })}
-        style={rangeInputStyle}
-      />
-    </div>
-  );
-}
-
-function NumberFilter({ column }: { column: any }) {
-  const v = (column.getFilterValue() as { from?: number; to?: number } | undefined) ?? {};
-  function update(patch: { from?: number; to?: number }) {
-    const next = { ...v, ...patch };
-    const empty = next.from === undefined && next.to === undefined;
-    column.setFilterValue(empty ? undefined : next);
-  }
-  return (
-    <div style={rangeWrapStyle}>
-      <input
-        type="number"
-        placeholder="min"
-        value={v.from ?? ""}
-        onChange={(e) =>
-          update({ from: e.target.value === "" ? undefined : Number(e.target.value) })
-        }
-        style={rangeInputStyle}
-      />
-      <input
-        type="number"
-        placeholder="max"
-        value={v.to ?? ""}
-        onChange={(e) =>
-          update({ to: e.target.value === "" ? undefined : Number(e.target.value) })
-        }
-        style={rangeInputStyle}
-      />
-    </div>
-  );
-}
-
-// -----------------------------------------------------------------------------
-// Column visibility dropdown
-// -----------------------------------------------------------------------------
-
-function ColumnMenu({
+function SortControl({
   table,
-  fieldById,
+  fields,
 }: {
   table: Table<Model>;
-  fieldById: Map<string, SchemaField>;
+  fields: SchemaField[];
 }) {
-  function label(col: any) {
-    const id: string = col.id;
-    if (id.startsWith("body.")) {
-      const key = id.slice(5);
-      return fieldById.get(key)?.label || key;
-    }
-    if (typeof col.columnDef.header === "string") return col.columnDef.header;
-    return id;
+  const state = table.getState().sorting[0];
+  const currentId = state?.id ?? "slug";
+  const currentDir: "asc" | "desc" = state?.desc ? "desc" : "asc";
+
+  const sortOptions: { id: string; label: string }[] = [
+    { id: "slug", label: "Slug" },
+    ...fields.map((f) => ({ id: `body.${f.key}`, label: fieldLabel(f) })),
+  ];
+
+  function setSortId(id: string) {
+    table.setSorting([{ id, desc: currentDir === "desc" }]);
   }
+  function toggleDir() {
+    table.setSorting([{ id: currentId, desc: currentDir === "asc" }]);
+  }
+
+  return (
+    <div style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}>
+      <select
+        value={currentId}
+        onChange={(e) => setSortId(e.target.value)}
+        style={{ ...inputStyle, padding: "0.3rem 0.4rem" }}
+      >
+        {sortOptions.map((o) => (
+          <option key={o.id} value={o.id}>
+            Sort by {o.label}
+          </option>
+        ))}
+      </select>
+      <button style={buttonStyle} onClick={toggleDir} aria-label="toggle direction">
+        {currentDir === "asc" ? "↑" : "↓"}
+      </button>
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Field visibility menu (renamed from Columns → Fields)
+// -----------------------------------------------------------------------------
+
+function FieldMenu({
+  table,
+  fields,
+}: {
+  table: Table<Model>;
+  fields: SchemaField[];
+}) {
   return (
     <details style={{ position: "relative" }}>
-      <summary style={filterSummaryStyle}>Columns</summary>
+      <summary style={filterSummaryStyle}>Fields</summary>
       <div style={filterMenuStyle}>
         <label style={filterCheckLabelStyle}>
           <input
             type="checkbox"
             checked={table.getIsAllColumnsVisible()}
             ref={(el) => {
-              if (el) el.indeterminate =
-                !!table.getIsSomeColumnsVisible() && !table.getIsAllColumnsVisible();
+              if (el)
+                el.indeterminate =
+                  !!table.getIsSomeColumnsVisible() &&
+                  !table.getIsAllColumnsVisible();
             }}
             onChange={table.getToggleAllColumnsVisibilityHandler()}
           />
           <span style={{ fontWeight: 600 }}>All</span>
         </label>
-        <hr style={{ border: 0, borderTop: "1px solid var(--border-item)", margin: "0.35rem 0" }} />
-        {table.getAllLeafColumns().map((col) => (
-          <label key={col.id} style={filterCheckLabelStyle}>
-            <input
-              type="checkbox"
-              checked={col.getIsVisible()}
-              onChange={col.getToggleVisibilityHandler()}
-            />
-            <span>{label(col)}</span>
-          </label>
-        ))}
+        <hr style={hrStyle} />
+        {fields.map((f) => {
+          const col = table.getColumn(`body.${f.key}`);
+          if (!col) return null;
+          return (
+            <label key={f.key} style={filterCheckLabelStyle}>
+              <input
+                type="checkbox"
+                checked={col.getIsVisible()}
+                onChange={col.getToggleVisibilityHandler()}
+              />
+              <span>{fieldLabel(f)}</span>
+            </label>
+          );
+        })}
       </div>
     </details>
   );
 }
 
 // -----------------------------------------------------------------------------
-// Cell renderers
+// Per-field filter chip
 // -----------------------------------------------------------------------------
 
-function renderCellFor(type: string, v: unknown): ReactNode {
-  if (v === null || v === undefined || v === "") {
-    return <span style={mutedStyle}>—</span>;
+function FilterChip({ field, table }: { field: SchemaField; table: Table<Model> }) {
+  const col = table.getColumn(`body.${field.key}`);
+  if (!col) return null;
+  if (field.type === "enum") {
+    const value = (col.getFilterValue() as string[] | undefined) ?? [];
+    const options = field.values ?? [];
+    const summary =
+      value.length === 0
+        ? fieldLabel(field)
+        : value.length === 1
+          ? `${fieldLabel(field)}: ${value[0]}`
+          : `${fieldLabel(field)}: ${value.length}`;
+    return (
+      <details style={{ position: "relative" }}>
+        <summary style={{ ...filterSummaryStyle, background: value.length ? "var(--btn-primary-bg)" : "var(--btn-bg)", color: value.length ? "var(--btn-primary-fg)" : "var(--btn-fg)" }}>
+          {summary}
+        </summary>
+        <div style={filterMenuStyle}>
+          {options.map((opt) => {
+            const checked = value.includes(opt);
+            return (
+              <label key={opt} style={filterCheckLabelStyle}>
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={(e) => {
+                    const next = e.target.checked
+                      ? [...value, opt]
+                      : value.filter((v) => v !== opt);
+                    col.setFilterValue(next.length ? next : undefined);
+                  }}
+                />
+                {opt}
+              </label>
+            );
+          })}
+          {value.length > 0 && (
+            <button
+              type="button"
+              style={filterClearStyle}
+              onClick={() => col.setFilterValue(undefined)}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      </details>
+    );
   }
-  switch (type) {
-    case "date":
-      return fmtDate(String(v));
-    case "boolean":
-      return v ? "✓" : "·";
-    case "url": {
-      const href = String(v);
-      const short = href.replace(/^https?:\/\//, "").slice(0, 40);
-      return (
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={linkStyle}
-        >
-          {short}
-        </a>
-      );
-    }
-    case "number":
-    case "integer":
-      if (typeof v === "number") return v.toLocaleString();
-      return String(v);
-    case "tags":
-      if (Array.isArray(v)) return v.join(", ");
-      return String(v);
-    default:
-      if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
-        return String(v);
-      }
-      const s = JSON.stringify(v);
-      return <code style={codeStyle}>{s.length > 80 ? s.slice(0, 80) + "…" : s}</code>;
+  if (field.type === "date") {
+    const v = (col.getFilterValue() as { from?: string; to?: string } | undefined) ?? {};
+    return (
+      <div style={rangeChipStyle}>
+        <span style={mutedStyle}>{fieldLabel(field)}</span>
+        <input
+          type="date"
+          value={v.from ?? ""}
+          onChange={(e) => {
+            const next = { ...v, from: e.target.value || undefined };
+            const empty = !next.from && !next.to;
+            col.setFilterValue(empty ? undefined : next);
+          }}
+          style={rangeInputStyle}
+        />
+        <span>–</span>
+        <input
+          type="date"
+          value={v.to ?? ""}
+          onChange={(e) => {
+            const next = { ...v, to: e.target.value || undefined };
+            const empty = !next.from && !next.to;
+            col.setFilterValue(empty ? undefined : next);
+          }}
+          style={rangeInputStyle}
+        />
+      </div>
+    );
   }
-}
-
-function fmtDate(iso: string): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function fmtDateTime(iso: string): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  if (field.type === "number" || field.type === "integer") {
+    const v = (col.getFilterValue() as { from?: number; to?: number } | undefined) ?? {};
+    return (
+      <div style={rangeChipStyle}>
+        <span style={mutedStyle}>{fieldLabel(field)}</span>
+        <input
+          type="number"
+          placeholder="min"
+          value={v.from ?? ""}
+          onChange={(e) => {
+            const num = e.target.value === "" ? undefined : Number(e.target.value);
+            const next = { ...v, from: num };
+            const empty = next.from === undefined && next.to === undefined;
+            col.setFilterValue(empty ? undefined : next);
+          }}
+          style={rangeInputStyle}
+        />
+        <span>–</span>
+        <input
+          type="number"
+          placeholder="max"
+          value={v.to ?? ""}
+          onChange={(e) => {
+            const num = e.target.value === "" ? undefined : Number(e.target.value);
+            const next = { ...v, to: num };
+            const empty = next.from === undefined && next.to === undefined;
+            col.setFilterValue(empty ? undefined : next);
+          }}
+          style={rangeInputStyle}
+        />
+      </div>
+    );
+  }
+  return null;
 }
 
 // -----------------------------------------------------------------------------
-// Filter functions
+// Filter fns
 // -----------------------------------------------------------------------------
 
 const fuzzyIncludes: FilterFn<Model> = (row, columnId, filterValue) => {
@@ -635,31 +587,25 @@ function numericSort(a: any, b: any, colId: string): number {
 }
 
 // -----------------------------------------------------------------------------
-// Column visibility persistence, per-kind.
+// Column visibility persistence
 // -----------------------------------------------------------------------------
 
 function storageKey(kindId: string) {
   return `inv.kind.${kindId}.colvis`;
 }
-
 function loadVisibility(kindId: string): VisibilityState | null {
   if (!kindId) return null;
   try {
     const raw = localStorage.getItem(storageKey(kindId));
     if (raw) return JSON.parse(raw);
-  } catch {
-    // fall through
-  }
+  } catch {}
   return null;
 }
-
 function saveVisibility(kindId: string, v: VisibilityState) {
   if (!kindId) return;
   try {
     localStorage.setItem(storageKey(kindId), JSON.stringify(v));
-  } catch {
-    // ignore
-  }
+  } catch {}
 }
 
 // -----------------------------------------------------------------------------
@@ -668,28 +614,102 @@ function saveVisibility(kindId: string, v: VisibilityState) {
 
 const controlsRowStyle = {
   display: "flex",
-  gap: "0.75rem",
+  gap: "0.5rem",
   alignItems: "center",
   marginBottom: "0.75rem",
   flexWrap: "wrap" as const,
 };
 
-const filterCellStyle = {
-  padding: "0.25rem 0.4rem",
-  borderBottom: "1px solid var(--border)",
+const kindHeaderStyle = {
+  display: "flex",
+  gap: "0.75rem",
+  alignItems: "center",
+  justifyContent: "space-between",
+  flexWrap: "wrap" as const,
+};
+
+const primaryLinkStyle = {
+  ...buttonStyle,
+  background: "var(--btn-primary-bg)",
+  color: "var(--btn-primary-fg)",
+};
+
+const filterStripStyle = {
+  display: "flex",
+  gap: "0.5rem",
+  flexWrap: "wrap" as const,
+  marginBottom: "0.75rem",
+  padding: "0.5rem 0",
+  borderTop: "1px solid var(--border-item)",
+  borderBottom: "1px solid var(--border-item)",
+};
+
+const gridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+  gap: "0.75rem",
+  marginTop: "0.25rem",
+};
+
+const cardStyle = {
+  border: "1px solid var(--border)",
+  borderRadius: 8,
+  padding: "0.75rem 0.9rem",
   background: "var(--bg)",
+  display: "flex",
+  flexDirection: "column" as const,
+  gap: "0.6rem",
+};
+
+const cardHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: "0.5rem",
+  alignItems: "baseline",
+};
+
+const cardBodyStyle = {
+  display: "grid",
+  gridTemplateColumns: "auto 1fr",
+  columnGap: "0.75rem",
+  rowGap: "0.2rem",
+};
+
+const fieldRowStyle = {
+  display: "contents",
+};
+
+const fieldLabelStyle = {
+  color: "var(--muted)",
+  fontSize: "0.75rem",
+  whiteSpace: "nowrap" as const,
+  textTransform: "uppercase" as const,
+  letterSpacing: "0.02em",
+};
+
+const fieldValueStyle = {
+  fontSize: "0.9rem",
+  wordBreak: "break-word" as const,
+  minWidth: 0,
+};
+
+const cardFooterStyle = {
+  color: "var(--muted)",
+  fontSize: "0.75rem",
+  borderTop: "1px solid var(--border-item)",
+  paddingTop: "0.4rem",
 };
 
 const filterSummaryStyle = {
   cursor: "pointer",
-  padding: "0.25rem 0.5rem",
+  padding: "0.35rem 0.6rem",
   background: "var(--btn-bg)",
   color: "var(--btn-fg)",
-  borderRadius: 4,
-  fontSize: "0.75rem",
+  borderRadius: 6,
+  fontSize: "0.8rem",
   listStyle: "none" as const,
   display: "inline-block",
-  minWidth: "3.5rem",
+  whiteSpace: "nowrap" as const,
 };
 
 const filterMenuStyle = {
@@ -700,10 +720,10 @@ const filterMenuStyle = {
   border: "1px solid var(--border)",
   borderRadius: 6,
   padding: "0.5rem 0.6rem",
-  minWidth: 180,
+  minWidth: 200,
   maxHeight: 320,
   overflowY: "auto" as const,
-  boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+  boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
   zIndex: 20,
 };
 
@@ -712,7 +732,7 @@ const filterCheckLabelStyle = {
   gap: "0.4rem",
   alignItems: "center",
   padding: "0.15rem 0",
-  fontSize: "0.8rem",
+  fontSize: "0.85rem",
   cursor: "pointer",
   whiteSpace: "nowrap" as const,
 };
@@ -724,18 +744,28 @@ const filterClearStyle = {
   border: 0,
   padding: 0,
   cursor: "pointer",
-  fontSize: "0.75rem",
+  fontSize: "0.8rem",
 };
 
-const rangeWrapStyle = {
+const rangeChipStyle = {
   display: "flex",
-  gap: "0.2rem",
+  gap: "0.3rem",
   alignItems: "center",
+  padding: "0.25rem 0.5rem",
+  background: "var(--btn-bg)",
+  borderRadius: 6,
+  fontSize: "0.8rem",
 };
 
 const rangeInputStyle = {
   ...inputStyle,
-  padding: "0.15rem 0.3rem",
-  fontSize: "0.75rem",
-  maxWidth: "6rem",
+  padding: "0.15rem 0.35rem",
+  fontSize: "0.8rem",
+  maxWidth: "7rem",
+};
+
+const hrStyle = {
+  border: 0,
+  borderTop: "1px solid var(--border-item)",
+  margin: "0.35rem 0",
 };
