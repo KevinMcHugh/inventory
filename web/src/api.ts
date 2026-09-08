@@ -29,6 +29,32 @@ export type Model = {
   updatedAt: string;
 };
 
+export type FieldType =
+  | "text"
+  | "number"
+  | "integer"
+  | "boolean"
+  | "date"
+  | "enum"
+  | "url"
+  | "tags";
+
+export type SchemaField = {
+  key: string;
+  label?: string;
+  type: FieldType;
+  pinned?: boolean;
+  values?: string[];
+  min?: number;
+  max?: number;
+  unit?: string;
+};
+
+export type Schema = {
+  version?: number;
+  fields: SchemaField[];
+};
+
 async function call<T>(path: string): Promise<T> {
   const token = getToken();
   if (!token) throw new Error("not signed in");
@@ -51,4 +77,6 @@ export const api = {
   kind: (kindId: string) => call<Kind>(`/kinds/${encodeURIComponent(kindId)}`),
   models: (kindId: string) =>
     call<Model[]>(`/kinds/${encodeURIComponent(kindId)}/models`),
+  schema: (kindId: string) =>
+    call<Schema>(`/kinds/${encodeURIComponent(kindId)}/schema`),
 };

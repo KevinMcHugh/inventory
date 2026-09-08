@@ -21,6 +21,7 @@
   --btn-primary-bg: #222222;
   --btn-primary-fg: #ffffff;
   --link: #0060df;
+  --row-hover: #f5f5f5;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -40,8 +41,15 @@
     --btn-primary-bg: #f0f0ee;
     --btn-primary-fg: #14161a;
     --link: #7fb2ff;
+    --row-hover: #1c1f24;
   }
 }
+
+tbody tr:hover {
+  background: var(--row-hover);
+}
+
+a { color: var(--link); }
 
 html,
 body {
