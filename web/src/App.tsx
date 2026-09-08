@@ -9,7 +9,9 @@ import {
 import { Layout } from "./Layout";
 import { Callback } from "./pages/Callback";
 import { Home } from "./pages/Home";
+import { KindEditPage } from "./pages/KindEditPage";
 import { KindPage } from "./pages/KindPage";
+import { ModelEditPage } from "./pages/ModelEditPage";
 import { ModelPage } from "./pages/ModelPage";
 import { getToken, startLogin } from "./oauth";
 import {
@@ -44,11 +46,41 @@ export default function App() {
           }
         />
         <Route
+          path="/kinds/:kindId/edit"
+          element={
+            <AuthGate>
+              <Layout wide>
+                <KindEditPage />
+              </Layout>
+            </AuthGate>
+          }
+        />
+        <Route
+          path="/kinds/:kindId/models/new"
+          element={
+            <AuthGate>
+              <Layout>
+                <ModelEditPage />
+              </Layout>
+            </AuthGate>
+          }
+        />
+        <Route
           path="/kinds/:kindId/models/:slug"
           element={
             <AuthGate>
               <Layout>
                 <ModelPage />
+              </Layout>
+            </AuthGate>
+          }
+        />
+        <Route
+          path="/kinds/:kindId/models/:slug/edit"
+          element={
+            <AuthGate>
+              <Layout>
+                <ModelEditPage />
               </Layout>
             </AuthGate>
           }
