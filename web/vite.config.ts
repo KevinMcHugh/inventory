@@ -8,6 +8,9 @@ export default defineConfig({
     proxy: {
       "/tenant": "http://localhost:8080",
       "/kinds": "http://localhost:8080",
+      "/mcp": "http://localhost:8080",
+      "/oauth": "http://localhost:8080",
+      "/.well-known": "http://localhost:8080",
       "/health": "http://localhost:8080",
     },
   },

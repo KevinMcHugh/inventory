@@ -1,49 +1,173 @@
 import { useEffect, useState } from "react";
 
-type Kind = {
-  id: string;
-  tenantId: string;
-  name: string;
-  description?: string;
-};
+import { api, type Kind, type Tenant } from "./api";
+import { completeLoginFromURL, getToken, logout, startLogin } from "./oauth";
 
-// TODO: the API requires Authorization: Bearer <api key>. Wire up a real auth
-// story for the web app (persist a key in localStorage or fetch a signed
-// session from the server) before this fetch will succeed. Until then this
-// page exists mainly to verify the /kinds route is reachable.
-const API_KEY = import.meta.env.VITE_INVENTORY_KEY as string | undefined;
+type AuthState = "checking" | "signed_out" | "signed_in";
 
 export default function App() {
+  const [auth, setAuth] = useState<AuthState>("checking");
+  const [tenant, setTenant] = useState<Tenant | null>(null);
   const [kinds, setKinds] = useState<Kind[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // On mount: finish any pending OAuth callback, then decide auth state.
   useEffect(() => {
-    if (!API_KEY) {
-      setError("set VITE_INVENTORY_KEY in .env.local to fetch");
-      return;
-    }
-    fetch("/kinds", { headers: { Authorization: `Bearer ${API_KEY}` } })
-      .then((r) => (r.ok ? r.json() : Promise.reject(r.statusText)))
-      .then(setKinds)
-      .catch((e) => setError(String(e)));
+    (async () => {
+      try {
+        if (await completeLoginFromURL()) {
+          // Strip the ?code=&state=... query from the URL bar.
+          window.history.replaceState({}, "", "/");
+        }
+      } catch (e) {
+        setError(String(e));
+      }
+      setAuth(getToken() ? "signed_in" : "signed_out");
+    })();
   }, []);
 
+  // Fetch tenant + kinds once signed in.
+  useEffect(() => {
+    if (auth !== "signed_in") return;
+    Promise.all([api.tenant(), api.kinds()])
+      .then(([t, ks]) => {
+        setTenant(t);
+        setKinds(ks);
+      })
+      .catch((e) => setError(String(e)));
+  }, [auth]);
+
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem" }}>
-      <h1>Inventory</h1>
-      {error && <pre style={{ color: "crimson" }}>{error}</pre>}
-      {kinds === null && !error && <p>loading…</p>}
-      {kinds && (
-        <ul>
-          {kinds.map((k) => (
-            <li key={k.id}>
-              <strong>{k.name}</strong> <code>{k.id}</code>
-              {k.description && <> — {k.description}</>}
-            </li>
-          ))}
-          {kinds.length === 0 && <li>(no kinds yet)</li>}
-        </ul>
+    <main style={pageStyle}>
+      <header style={headerStyle}>
+        <h1 style={{ margin: 0, fontSize: "1.4rem" }}>Inventory</h1>
+        {auth === "signed_in" && (
+          <button style={buttonStyle} onClick={() => { logout(); location.reload(); }}>
+            Sign out
+          </button>
+        )}
+      </header>
+
+      {error && <pre style={errorStyle}>{error}</pre>}
+
+      {auth === "checking" && <p style={mutedStyle}>loading…</p>}
+
+      {auth === "signed_out" && (
+        <section style={{ marginTop: "2rem" }}>
+          <p style={mutedStyle}>
+            Sign in with your Inventory api key to view your data.
+          </p>
+          <button style={primaryButtonStyle} onClick={() => startLogin()}>
+            Sign in
+          </button>
+        </section>
+      )}
+
+      {auth === "signed_in" && (
+        <>
+          {tenant && (
+            <section style={sectionStyle}>
+              <div style={mutedStyle}>Tenant</div>
+              <div style={{ fontSize: "1.1rem" }}>
+                <strong>{tenant.name}</strong>{" "}
+                <code style={codeStyle}>{tenant.id}</code>
+              </div>
+            </section>
+          )}
+
+          <section style={sectionStyle}>
+            <h2 style={{ margin: "0 0 0.5rem 0", fontSize: "1rem" }}>Kinds</h2>
+            {kinds === null && <p style={mutedStyle}>loading…</p>}
+            {kinds && kinds.length === 0 && (
+              <p style={mutedStyle}>
+                No kinds yet. Ask Claude to create one via the <code style={codeStyle}>create_kind</code> MCP tool.
+              </p>
+            )}
+            {kinds && kinds.length > 0 && (
+              <ul style={listStyle}>
+                {kinds.map((k) => (
+                  <li key={k.id} style={listItemStyle}>
+                    <strong>{k.name}</strong>{" "}
+                    <code style={codeStyle}>{k.id}</code>
+                    {k.description && (
+                      <div style={mutedStyle}>{k.description}</div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </>
       )}
     </main>
   );
 }
+
+// -----------------------------------------------------------------------------
+// Styles — inline so this stays a single file for now.
+// -----------------------------------------------------------------------------
+
+const pageStyle: React.CSSProperties = {
+  fontFamily: "system-ui, -apple-system, sans-serif",
+  maxWidth: 640,
+  margin: "3rem auto",
+  padding: "0 1.5rem",
+  color: "#1a1a1a",
+};
+
+const headerStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+};
+
+const sectionStyle: React.CSSProperties = {
+  marginTop: "2rem",
+  paddingTop: "1rem",
+  borderTop: "1px solid #eee",
+};
+
+const mutedStyle: React.CSSProperties = { color: "#666", fontSize: "0.9rem" };
+
+const codeStyle: React.CSSProperties = {
+  background: "#f4f4f4",
+  padding: "0 0.3rem",
+  borderRadius: 3,
+  fontSize: "0.85rem",
+};
+
+const errorStyle: React.CSSProperties = {
+  color: "#b00020",
+  background: "#ffe8ec",
+  padding: "0.6rem 0.8rem",
+  borderRadius: 6,
+  whiteSpace: "pre-wrap",
+};
+
+const buttonStyle: React.CSSProperties = {
+  background: "#eee",
+  color: "#333",
+  padding: "0.4rem 0.8rem",
+  border: 0,
+  borderRadius: 6,
+  cursor: "pointer",
+};
+
+const primaryButtonStyle: React.CSSProperties = {
+  ...buttonStyle,
+  background: "#222",
+  color: "white",
+  marginTop: "1rem",
+  padding: "0.6rem 1.2rem",
+};
+
+const listStyle: React.CSSProperties = {
+  listStyle: "none",
+  padding: 0,
+  margin: 0,
+};
+
+const listItemStyle: React.CSSProperties = {
+  padding: "0.6rem 0",
+  borderBottom: "1px solid #f0f0f0",
+};

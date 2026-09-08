@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path"
+	"path/filepath"
 	"strings"
 	"text/tabwriter"
 
@@ -81,17 +83,28 @@ func runServer() error {
 	r := chi.NewRouter()
 	r.Use(chimw.Logger)
 	r.Use(chimw.Recoverer)
-	r.Use(authmw.Auth(q, issuer))
 
+	// Public: OAuth discovery + flow endpoints do their own credential validation.
 	oauthHandler.Mount(r)
-	apigen.HandlerFromMux(apigen.NewStrictHandler(srv, nil), r)
 
+	// Auth-protected: REST + MCP.
 	mcpHandler := mcpsdk.NewStreamableHTTPHandler(
 		func(*http.Request) *mcpsdk.Server { return mcpServer },
 		nil,
 	)
-	r.Handle("/mcp", mcpHandler)
-	r.Handle("/mcp/*", mcpHandler)
+	r.Group(func(r chi.Router) {
+		r.Use(authmw.Auth(q, issuer))
+		apigen.HandlerFromMux(apigen.NewStrictHandler(srv, nil), r)
+		r.Handle("/mcp", mcpHandler)
+		r.Handle("/mcp/*", mcpHandler)
+	})
+
+	// Public: static web UI as SPA fallback. If WEB_DIST is unset or missing,
+	// the server is API-only (no UI served).
+	if dist := webDistDir(); dist != "" {
+		slog.Info("serving web UI", "dist", dist)
+		r.NotFound(spaHandler(dist))
+	}
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -300,4 +313,36 @@ func mintKey(ctx context.Context, q dbgen.Querier, tenantID, name string) (strin
 func printKey(raw string) {
 	fmt.Printf("api_key:   %s\n\n", raw)
 	fmt.Println("Save the key now — it will never be shown again.")
+}
+
+// webDistDir returns the directory holding the built SPA, or "" if none is
+// configured or present. Order: $WEB_DIST, then ./web/dist relative to CWD.
+func webDistDir() string {
+	if v := os.Getenv("WEB_DIST"); v != "" {
+		if info, err := os.Stat(v); err == nil && info.IsDir() {
+			return v
+		}
+		return ""
+	}
+	const def = "./web/dist"
+	if info, err := os.Stat(def); err == nil && info.IsDir() {
+		return def
+	}
+	return ""
+}
+
+// spaHandler serves static assets from dir, falling back to index.html for
+// any path that does not match a file. That fallback is what lets client-side
+// routes (e.g. /callback) work without server config.
+func spaHandler(dir string) http.HandlerFunc {
+	index := filepath.Join(dir, "index.html")
+	return func(w http.ResponseWriter, r *http.Request) {
+		clean := path.Clean("/" + r.URL.Path)
+		full := filepath.Join(dir, clean)
+		if info, err := os.Stat(full); err == nil && !info.IsDir() {
+			http.ServeFile(w, r, full)
+			return
+		}
+		http.ServeFile(w, r, index)
+	}
 }
