@@ -35,8 +35,7 @@ export function Home() {
         <section style={sectionStyle}>
           <div style={mutedStyle}>Tenant</div>
           <div style={{ fontSize: "1.1rem" }}>
-            <strong>{tenant.name}</strong>{" "}
-            <code style={codeStyle}>{tenant.id}</code>
+            <strong>{tenant.name}</strong>
           </div>
         </section>
       )}
@@ -62,7 +61,6 @@ export function Home() {
                 >
                   {k.name}
                 </Link>
-                <code style={codeStyle}>{k.id}</code>
                 {k.description && (
                   <span style={{ ...mutedStyle, marginLeft: "auto" }}>
                     {k.description}

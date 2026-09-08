@@ -11,7 +11,6 @@ import {
 } from "../api";
 import {
   buttonStyle,
-  codeStyle,
   errorStyle,
   inputStyle,
   linkStyle,
@@ -134,7 +133,7 @@ export function KindEditPage() {
           <section style={sectionStyle}>
             <div style={mutedStyle}>Editing schema</div>
             <div style={{ fontSize: "1.3rem", fontWeight: 600 }}>
-              {kind.name} <code style={codeStyle}>{kind.id}</code>
+              {kind.name}
             </div>
             <p style={{ ...mutedStyle, marginTop: "0.4rem" }}>
               Saving posts a new kind version. Existing models keep pointing at

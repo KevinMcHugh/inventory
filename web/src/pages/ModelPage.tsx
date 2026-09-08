@@ -4,7 +4,6 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError, api, type Kind, type Model, type Schema } from "../api";
 import {
   buttonStyle,
-  codeStyle,
   errorStyle,
   linkStyle,
   mutedStyle,
@@ -80,10 +79,6 @@ export function ModelPage() {
                 <div style={mutedStyle}>Model</div>
                 <div style={{ fontSize: "1.3rem", fontWeight: 600 }}>
                   {model.slug}
-                </div>
-                <div style={{ ...mutedStyle, marginTop: "0.2rem" }}>
-                  <code style={codeStyle}>{model.id}</code> · pinned to{" "}
-                  <code style={codeStyle}>{model.kindVersionId}</code>
                 </div>
               </div>
               <div style={{ display: "flex", gap: "0.5rem" }}>

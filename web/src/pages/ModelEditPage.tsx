@@ -17,7 +17,6 @@ import {
 } from "../api";
 import {
   buttonStyle,
-  codeStyle,
   errorStyle,
   inputStyle,
   linkStyle,
@@ -225,11 +224,7 @@ export function ModelEditPage() {
                 Cancel
               </Link>
             </div>
-            {!isCreate && existing && (
-              <p style={{ ...mutedStyle, marginTop: "0.5rem" }}>
-                Editing pinned to <code style={codeStyle}>{existing.kindVersionId}</code>
-              </p>
-            )}
+            {null}
           </section>
         </form>
       )}

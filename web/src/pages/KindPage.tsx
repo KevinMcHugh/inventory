@@ -22,7 +22,6 @@ import {
 } from "../api";
 import {
   buttonStyle,
-  codeStyle,
   errorStyle,
   inputStyle,
   linkStyle,
@@ -164,7 +163,7 @@ export function KindPage() {
             <div style={mutedStyle}>Kind</div>
             <div style={kindHeaderStyle}>
               <div style={{ fontSize: "1.3rem", fontWeight: 600 }}>
-                {kind.name} <code style={codeStyle}>{kind.id}</code>
+                {kind.name}
               </div>
               <Link
                 to={`/kinds/${kindId}/edit`}
