@@ -21,11 +21,79 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
+// Defines values for FieldType.
+const (
+	Boolean FieldType = "boolean"
+	Date    FieldType = "date"
+	Enum    FieldType = "enum"
+	Integer FieldType = "integer"
+	Number  FieldType = "number"
+	Tags    FieldType = "tags"
+	Text    FieldType = "text"
+	Url     FieldType = "url"
+)
+
+// Valid indicates whether the value is a known member of the FieldType enum.
+func (e FieldType) Valid() bool {
+	switch e {
+	case Boolean:
+		return true
+	case Date:
+		return true
+	case Enum:
+		return true
+	case Integer:
+		return true
+	case Number:
+		return true
+	case Tags:
+		return true
+	case Text:
+		return true
+	case Url:
+		return true
+	default:
+		return false
+	}
+}
+
 // Error defines model for Error.
 type Error struct {
 	Code    *string `json:"code,omitempty"`
 	Message string  `json:"message"`
 }
+
+// Field defines model for Field.
+type Field struct {
+	// Key The property name inside model.body.
+	Key string `json:"key"`
+
+	// Label Human-readable header. Falls back to key when omitted.
+	Label *string `json:"label,omitempty"`
+
+	// Max Upper bound hint for number/integer types.
+	Max *float32 `json:"max,omitempty"`
+
+	// Min Lower bound hint for number/integer types.
+	Min *float32 `json:"min,omitempty"`
+
+	// Pinned If true, the column is visible by default.
+	Pinned *bool `json:"pinned,omitempty"`
+
+	// Type The value shape of a body property. Drives cell rendering and
+	// per-column filter widgets on the frontend.
+	Type FieldType `json:"type"`
+
+	// Unit Unit label rendered next to number values.
+	Unit *string `json:"unit,omitempty"`
+
+	// Values Allowed values for enum-typed fields.
+	Values *[]string `json:"values,omitempty"`
+}
+
+// FieldType The value shape of a body property. Drives cell rendering and
+// per-column filter widgets on the frontend.
+type FieldType string
 
 // Health defines model for Health.
 type Health struct {
@@ -95,6 +163,15 @@ type ModelUpdate struct {
 
 	// KindVersionId If omitted, the latest version for the kind is used.
 	KindVersionId *string `json:"kindVersionId,omitempty"`
+}
+
+// Schema defines model for Schema.
+type Schema struct {
+	// Fields Array order drives display column order.
+	Fields []Field `json:"fields"`
+
+	// Version Bumped whenever the schema shape itself changes.
+	Version *int `json:"version,omitempty"`
 }
 
 // Tenant defines model for Tenant.
@@ -172,6 +249,9 @@ type ServerInterface interface {
 	// UpdateModel Update a model
 	// (PUT /kinds/{kindId}/models/{slug})
 	UpdateModel(w http.ResponseWriter, r *http.Request, kindId KindId, slug Slug)
+	// GetKindSchema Return the latest schema authored for this kind
+	// (GET /kinds/{kindId}/schema)
+	GetKindSchema(w http.ResponseWriter, r *http.Request, kindId KindId)
 	// ListKindVersions List versions for a kind
 	// (GET /kinds/{kindId}/versions)
 	ListKindVersions(w http.ResponseWriter, r *http.Request, kindId KindId)
@@ -253,6 +333,12 @@ func (_ Unimplemented) GetModel(w http.ResponseWriter, r *http.Request, kindId K
 // UpdateModel Update a model
 // (PUT /kinds/{kindId}/models/{slug})
 func (_ Unimplemented) UpdateModel(w http.ResponseWriter, r *http.Request, kindId KindId, slug Slug) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetKindSchema Return the latest schema authored for this kind
+// (GET /kinds/{kindId}/schema)
+func (_ Unimplemented) GetKindSchema(w http.ResponseWriter, r *http.Request, kindId KindId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -566,6 +652,32 @@ func (siw *ServerInterfaceWrapper) UpdateModel(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// GetKindSchema operation middleware
+func (siw *ServerInterfaceWrapper) GetKindSchema(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "kindId" -------------
+	var kindId KindId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "kindId", chi.URLParam(r, "kindId"), &kindId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "kindId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetKindSchema(w, r, kindId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListKindVersions operation middleware
 func (siw *ServerInterfaceWrapper) ListKindVersions(w http.ResponseWriter, r *http.Request) {
 
@@ -782,6 +894,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Put(options.BaseURL+"/kinds/{kindId}", wrapper.UpdateKind)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/kinds/{kindId}/schema", wrapper.GetKindSchema)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/kinds/{kindId}/versions", wrapper.ListKindVersions)
@@ -1072,6 +1187,42 @@ func (response UpdateModel200JSONResponse) VisitUpdateModelResponse(w http.Respo
 	return err
 }
 
+type GetKindSchemaRequestObject struct {
+	KindId KindId `json:"kindId"`
+}
+
+type GetKindSchemaResponseObject interface {
+	VisitGetKindSchemaResponse(w http.ResponseWriter) error
+}
+
+type GetKindSchema200JSONResponse Schema
+
+func (response GetKindSchema200JSONResponse) VisitGetKindSchemaResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetKindSchema404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetKindSchema404JSONResponse) VisitGetKindSchemaResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListKindVersionsRequestObject struct {
 	KindId KindId `json:"kindId"`
 }
@@ -1195,6 +1346,9 @@ type StrictServerInterface interface {
 	// UpdateModel Update a model
 	// (PUT /kinds/{kindId}/models/{slug})
 	UpdateModel(ctx context.Context, request UpdateModelRequestObject) (UpdateModelResponseObject, error)
+	// GetKindSchema Return the latest schema authored for this kind
+	// (GET /kinds/{kindId}/schema)
+	GetKindSchema(ctx context.Context, request GetKindSchemaRequestObject) (GetKindSchemaResponseObject, error)
 	// ListKindVersions List versions for a kind
 	// (GET /kinds/{kindId}/versions)
 	ListKindVersions(ctx context.Context, request ListKindVersionsRequestObject) (ListKindVersionsResponseObject, error)
@@ -1559,6 +1713,32 @@ func (sh *strictHandler) UpdateModel(w http.ResponseWriter, r *http.Request, kin
 	}
 }
 
+// GetKindSchema operation middleware
+func (sh *strictHandler) GetKindSchema(w http.ResponseWriter, r *http.Request, kindId KindId) {
+	var request GetKindSchemaRequestObject
+
+	request.KindId = kindId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetKindSchema(ctx, request.(GetKindSchemaRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetKindSchema")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetKindSchemaResponseObject); ok {
+		if err := validResponse.VisitGetKindSchemaResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListKindVersions operation middleware
 func (sh *strictHandler) ListKindVersions(w http.ResponseWriter, r *http.Request, kindId KindId) {
 	var request ListKindVersionsRequestObject
@@ -1678,27 +1858,35 @@ func (sh *strictHandler) UpdateTenant(w http.ResponseWriter, r *http.Request) {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"zFhNc9s2EP0rGLQzvTAi6/iQYU9Om7qaOJ2MneSS8QEmVyIiEmCBpRLVo//ewYcoSiQsy5bk3iQC3N33",
-	"8PCwxD3NZFVLAQI1Te9pzRSrAEHZf++5yMe5+cUFTWnNsKARFawCmtKZG4yogn8ariCnKaoGIqqzAipm",
-	"3qrYjysQUyxoepZEtOKi+xcXtYmjUXExpctlRG/KZhrIps3QQ7m2oy3NZF1LocFi+Vvin7IRFk0mBYJA",
-	"85PVdckzhlyK+JuWwjxbB/1ZwYSm9Kd4zVLsRnX8TimpXKIcdKZ4bYLQlF6Dlo3KgAiJZGJzmkn+PRPW",
-	"vWroVrIGhdyVmMkcBqBEtAKt2XRobNml5Gs78bZlV959gwxNkL+AlVj0s8pZJ+6dlCUw0QssZ4MxjUAG",
-	"cChgCPmFJXgiVcWQpjRnCK+QV0CjPsINBgcY4PngYyeOgQEEwQSOh99q6ny/+rbI4DntZPBVRB3Y3RQh",
-	"2n63s/vk7WIiAHmrRDsrlPqzLe5FUn8BpX34Z2smoIlZa1q9ofXGZnnODU5WfuyU4TylV/hB9NLapS9i",
-	"X7145kKyeRK0rTp9jKEKPsgcyn7WO5kv9qbzJEs9W1MWmKH9YfOy3tHKYrPgaHXgWYb30YpdqZBKnrRe",
-	"PSo3j7vxhMiKI0IeESyAlAxBI5m7N8hEKvvYRCFck0ZDPhpa48B6bGu0Q0sQfsjg/r/wt1AG4X2yyjmm",
-	"fQaP1IMof++j0gEOLeizTiQzjYuJ7K/pJQhQrHxVN6qWGkjOkGmUCuxyXowJm4JAPSLv5qAWRMkGgcCP",
-	"DGokcWH7LOIL0OSiwUIq/q/tMclbYAoU+c6xIEwQVnMyg8VvTiOwIAq0LOegCUrCiDOKiGhJVp5hRCRg",
-	"Doow8vn6irQdu1UVx9JAHIs5CJRqQS4+jmlE56tjlyajs1FiiJU1CFZzmtLXo2T0mka24basegjm5xTs",
-	"chvOGfodQC8BfTO51WOfJcnB2mufYaC/vgE15xkYIlyhC9dfN1XF1IKmvtMlWQHZzA7FZvfpIJ4rrvG9",
-	"nfFMPByh0ruAmUx02aqRKcUWQzBNVUROiKt9E6EdswOtwWSsLEH9or1QTIZa6gG07mywVbhtAhrfemM8",
-	"yMp1utvl5lY0DrvscfzrQTMPUWmeE+85W0y6QgmzbHbEEt+7k3np3KEEhD6Vf9jnLZUbqM77tmLLcLG2",
-	"y7iRE3zlhtpaouDuG86YHJ3HTwW0tZ0n56EwbV1x+9G9ifYS0KMkdwvCbbzuzcPX4bjrKbG/mVjeRrRu",
-	"BkhyB8aRRe6SPE7kyWlE7g/TLb5doQ+IPK5M2/SwQ35wU05hkTbVPh7pyx8wSTdiXXK9r56utQcc1RV9",
-	"HLV1m/oTe6pfiz73dmCXq1b+7ZDi4nvT0D/CZNfs7nJZV9djbLZaySzks4GkyfHJNU7blvd8q7WhjNca",
-	"tp++A6KdM+0N7g5XPvpGeRlf3rFRdjhzeKP43n13+/plNfFUXaxPuG8zS1pEA369GjuFY3cxHK9L2Ly4",
-	"e4GOuF2mQM+wuqrYYeUCvm8snxMrthcSIRP1VxZH3Hk+Q8BGV99DG6iuARslgh9OYfPqoDm8XDYuO05s",
-	"Xw+QaEcCBnYN5nZlmEg7E9R8tWu3LEFmzJzTcyhlXYEltVElTWmBWKdxXJoJhdSYvkneJHR5u/xvAA==",
+	"zFpbb9s4Fv4rB9wFdhdQbG/bh8LzlE5vQdNBkaR9aftAi8cWa4nUkJQTT+D/PjgkLcuWFOfmZJ5ii9S5",
+	"fOfjx0M61yzVRakVKmfZ+JqV3PACHRr/7ZNU4kTQJ6nYmJXcZSxhihfIxmweBhNm8M9KGhRs7EyFCbNp",
+	"hgWntwp+dYpq5jI2fjFKWCFV86tblmTHOiPVjK1WCTvPq1mPN0tDN/natbaiybbUyqLP5Q/t3utK+WxS",
+	"rRwqRx95WeYy5U5qNfxltaJnG6P/NjhlY/av4QalYRi1w3fGaBMcCbSpkSUZYWN2hlZXJkVQ2sHU+6RJ",
+	"8T0yG14luI0u0TgZQky1wI5UElagtXzWNbZqQvK9nvizRldPfmHqyMh7ibloO53jkv5sp3CRIcRpS6AK",
+	"gFRWCoRCC8wHEy2WA5a0A835BPO2uY9VwdWRQS74JEfIkAs0A3jP89zChKdzcBrmuITLDBXoQjqHotNB",
+	"wa/a5r+WJRqYENKQSUWgG1BVMUEzlMrhDA2QJdswGYa9SanaJk/15QNMllIpFG2rJ1PwtAWXIaQ6rwoF",
+	"0sJCWkm4TJYgcMqr3DWsTrTOkSu2Wj+5mZW+yhc0cZWwSknXAZeSDnylwKASaFCAwitHRQg5wILnFdrO",
+	"CoShttXjPNeXKOKrHi9UVXFEBgRMKSxvUDosbCfL4wNuDF+2mE00jVN6yX0R8Wlz2QcFNuMlgp4CB2Jw",
+	"zfABvDVygRZSzNeYSDUDrsQPVaI5iqWaytyhgUspZugsaOXrODVeTcTgh2IJo5wpXodXjiVrTiQskoYl",
+	"dUETJrjD9SsJq0xOGfKZbWS4Qecj8txl7fWr5w0wa7LsoKfnnaiRvrctpga5Q3HsqTPVpuCOjX2wR04W",
+	"2EWKLcQ7SitF5+Og7R0DDhVX7qT7raoUd4tvBwwpWMNDjCJppN100Qfb7352G7x9SPSkvBOin9Xn+qsP",
+	"7llcf0Njo/kHc6aHE/O652gNbfZlLoSkPHn+pRFGaAlagT8KX+puJwZxV75E5Ppoc6/UduKMNroi+Ezb",
+	"dtsrqeCd4XySUs83kPXMsLFXfF7tqGmxHXCy7lc9wnfhiq9UH0vuVa8WlK2eJDZcoS3JuUPrYBHe8Ps4",
+	"PSYr1KtUtqcz66nHLkcbsPSm3ydw/9z0d7LsTe+8XubbmYX2qKOpol4ItBFoQIQeRUhb5ny5bh/92FZf",
+	"tbc7bPdaCVtshH07gjdVQf0bNea4wABGsBbbKeks5lNIM65mWy3juuPZBSfm2gXPhV9Yh9xdejuORxGG",
+	"O3cSIeE+vj9ow6ZpUk11u6QfUKHh+VFZmVJbBMEdt04b9Gw/PgE+I9IM4N0CzRKMrhwCXqVYOhhmvg2F",
+	"GICF48pl2si//Aka3iA3vkN2GXAFvJR0rPstLCFcgkGrc2Kx08Ah6GgCVsNaUmmNBaJx+Hp2CvV9hCeW",
+	"dDmleKIWqJw2Szj+csIa5GWjwYvBiIDVJSpeSjZmLwejwUuW+OsEj2pMgT7O0JebMOcuCgT7gC722js3",
+	"CC9Go0e7PIgeOm4PztEsZIoERAg0nIVsVRTcLOkwHSqQZpjO/dCQxMn25nMqrfvkZzwwn1spDHnqOMy1",
+	"0qSo6CgWYt/O0I/5gVp/U57naP5jI1HIQ6ltR7Zh6/RRhGWC1r2J+8ajVK7R/K+2lyJtQKsWxv9/VM9d",
+	"UNJziJqzg2QIFLhHs0GW4XVoXFZBHXJ02IbyrX9eQ7mV1au2rPgwgq3dMM711B2FoTqWpHf1dXscHRzH",
+	"iwzr2F6NXvWZqeMa1leK29l+QBezpBsd6e0171W/d9vdTBnGe9fVz4SVVQdIYcM4MMmDk9uRfPQ0JI+b",
+	"6Q7eIdAbSD70t5Y3K+TnMOUpJNK7uotGxvA7RDKMeJXcrKv7c+0GRQ1BH4ZtzTPPE2tqrEUbez+wT1WL",
+	"+HYf44bXdN65hchu0N2nsiGu28hssaZZn872OB0dHlxS2jq8h0utN0VaS2jffwUke2f636f2qPLBF8rz",
+	"6PKehbJHmfsXysb7Te3A+frS7WD5RQ9dDbkfgf9iUbolCJ1WBSoHcrq5GMi4BaXrS4Mluv89lNln6Cqj",
+	"mlcS8dTN/YELRWyNpX2o7ncUJSay/0zxbT3xqY4W0eFdTxhQZ9Sxia7HnmIbbeZwuNZt+7L5GY4pdZl6",
+	"Grn1Stmzvyq83CpfUBBX3xL1SUa8RzqgXEQPPXvb+pDat6K7TrP9O0ojm8eny9YN1BPvKTeA6Ed6dpUz",
+	"9P+R0Amkn4lmsV61u7/qp5yapwXmuiQVjz+7jlnmXDkeDnOakGnrxq9Hr0ckjn8PAA==",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

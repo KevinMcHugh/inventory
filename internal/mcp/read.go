@@ -7,6 +7,7 @@ import (
 
 	"github.com/KevinMcHugh/inventory/internal/auth"
 	dbgen "github.com/KevinMcHugh/inventory/internal/db/gen"
+	"github.com/KevinMcHugh/inventory/internal/kindschema"
 	"github.com/KevinMcHugh/inventory/internal/server/kinds"
 	"github.com/KevinMcHugh/inventory/internal/server/models"
 	"github.com/KevinMcHugh/inventory/internal/server/tenants"
@@ -51,6 +52,14 @@ type GetModelInput struct {
 
 type GetModelOutput struct {
 	Model models.ViewModel `json:"model"`
+}
+
+type GetKindSchemaInput struct {
+	KindID string `json:"kindId" jsonschema:"kind xid"`
+}
+
+type GetKindSchemaOutput struct {
+	Schema kindschema.Schema `json:"schema"`
 }
 
 // -----------------------------------------------------------------------------
@@ -146,5 +155,24 @@ func registerReadTools(s *mcpsdk.Server, q dbgen.Querier) {
 			return nil, GetModelOutput{}, err
 		}
 		return nil, GetModelOutput{Model: models.ToViewModel(m)}, nil
+	})
+
+	mcpsdk.AddTool(s, &mcpsdk.Tool{
+		Name:        "get_kind_schema",
+		Description: "Return the latest schema authored for a kind (empty if none). The schema drives column order, labels, per-field types, and filter widgets on the web UI.",
+	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, in GetKindSchemaInput) (*mcpsdk.CallToolResult, GetKindSchemaOutput, error) {
+		tenantID, err := auth.TenantID(ctx)
+		if err != nil {
+			return nil, GetKindSchemaOutput{}, err
+		}
+		// Scope the read to the caller's tenant.
+		if _, err := q.GetKind(ctx, dbgen.GetKindParams{ID: in.KindID, TenantID: tenantID}); err != nil {
+			return nil, GetKindSchemaOutput{}, err
+		}
+		s, err := kindschema.LoadLatest(ctx, q, in.KindID)
+		if err != nil {
+			return nil, GetKindSchemaOutput{}, err
+		}
+		return nil, GetKindSchemaOutput{Schema: *s}, nil
 	})
 }

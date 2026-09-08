@@ -117,6 +117,22 @@ paths:
         "204":
           description: Kind deleted
 
+  /kinds/{kindId}/schema:
+    parameters:
+      - $ref: "#/components/parameters/KindId"
+    get:
+      operationId: getKindSchema
+      summary: Return the latest schema authored for this kind
+      responses:
+        "200":
+          description: Schema (empty document if the kind has no version yet)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Schema"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /kinds/{kindId}/versions:
     parameters:
       - $ref: "#/components/parameters/KindId"
@@ -326,6 +342,56 @@ components:
           type: string
         description:
           type: string
+
+    FieldType:
+      type: string
+      description: |
+        The value shape of a body property. Drives cell rendering and
+        per-column filter widgets on the frontend.
+      enum: [text, number, integer, boolean, date, enum, url, tags]
+
+    Field:
+      type: object
+      required: [key, type]
+      properties:
+        key:
+          type: string
+          description: The property name inside model.body.
+        label:
+          type: string
+          description: Human-readable header. Falls back to key when omitted.
+        type:
+          $ref: "#/components/schemas/FieldType"
+        pinned:
+          type: boolean
+          description: If true, the column is visible by default.
+        values:
+          type: array
+          items:
+            type: string
+          description: Allowed values for enum-typed fields.
+        min:
+          type: number
+          description: Lower bound hint for number/integer types.
+        max:
+          type: number
+          description: Upper bound hint for number/integer types.
+        unit:
+          type: string
+          description: Unit label rendered next to number values.
+
+    Schema:
+      type: object
+      required: [fields]
+      properties:
+        version:
+          type: integer
+          description: Bumped whenever the schema shape itself changes.
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/Field"
+          description: Array order drives display column order.
 
     KindVersion:
       type: object

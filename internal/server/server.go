@@ -83,6 +83,14 @@ func (s *Server) ListKindVersions(ctx context.Context, req apigen.ListKindVersio
 	return Run(ctx, kinds.ListVersionsEndpoint{Store: s.q}, req)
 }
 
+func (s *Server) GetKindSchema(ctx context.Context, req apigen.GetKindSchemaRequestObject) (apigen.GetKindSchemaResponseObject, error) {
+	resp, err := Run(ctx, kinds.GetSchemaEndpoint{Store: s.q}, req)
+	if IsNotFound(err) {
+		return apigen.GetKindSchema404JSONResponse{NotFoundJSONResponse: apigen.NotFoundJSONResponse{Message: "kind not found"}}, nil
+	}
+	return resp, err
+}
+
 func (s *Server) CreateKindVersion(ctx context.Context, req apigen.CreateKindVersionRequestObject) (apigen.CreateKindVersionResponseObject, error) {
 	if req.Body == nil {
 		return nil, errors.New("body required")
