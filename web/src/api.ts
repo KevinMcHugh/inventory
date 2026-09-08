@@ -44,6 +44,7 @@ export type SchemaField = {
   label?: string;
   type: FieldType;
   pinned?: boolean;
+  required?: boolean;
   values?: string[];
   min?: number;
   max?: number;
