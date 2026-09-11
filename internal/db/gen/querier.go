@@ -17,6 +17,7 @@ type Querier interface {
 	ConsumeOAuthCode(ctx context.Context, codeHash string) (OauthCode, error)
 	ConsumeSSOLoginIntent(ctx context.Context, state string) (SsoLoginIntent, error)
 	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (ApiKey, error)
+	CreateIndexedField(ctx context.Context, arg CreateIndexedFieldParams) (IndexedField, error)
 	CreateInvite(ctx context.Context, arg CreateInviteParams) (Invite, error)
 	CreateKind(ctx context.Context, arg CreateKindParams) (Kind, error)
 	CreateKindVersion(ctx context.Context, arg CreateKindVersionParams) (KindVersion, error)
@@ -28,6 +29,8 @@ type Querier interface {
 	CreateTenant(ctx context.Context, arg CreateTenantParams) (Tenant, error)
 	CreateUserIdentity(ctx context.Context, arg CreateUserIdentityParams) (UserIdentity, error)
 	DeleteAPIKey(ctx context.Context, id string) error
+	DeleteIndexedFieldsByModel(ctx context.Context, arg DeleteIndexedFieldsByModelParams) error
+	DeleteIndexedFieldsByModelSlug(ctx context.Context, arg DeleteIndexedFieldsByModelSlugParams) error
 	DeleteKind(ctx context.Context, arg DeleteKindParams) error
 	DeleteModelBySlug(ctx context.Context, arg DeleteModelBySlugParams) error
 	DeleteTenant(ctx context.Context, id string) error
@@ -44,6 +47,7 @@ type Querier interface {
 	GetUserIdentityByProviderSubject(ctx context.Context, arg GetUserIdentityByProviderSubjectParams) (UserIdentity, error)
 	ListAPIKeysByTenant(ctx context.Context, tenantID string) ([]ApiKey, error)
 	ListActiveInvites(ctx context.Context) ([]Invite, error)
+	ListIndexedFieldsByModel(ctx context.Context, arg ListIndexedFieldsByModelParams) ([]IndexedField, error)
 	ListKindVersionsByKind(ctx context.Context, kindID string) ([]KindVersion, error)
 	ListKindsByTenant(ctx context.Context, tenantID string) ([]Kind, error)
 	ListModelsByKind(ctx context.Context, arg ListModelsByKindParams) ([]Model, error)

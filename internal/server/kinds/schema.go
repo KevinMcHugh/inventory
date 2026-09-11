@@ -79,6 +79,10 @@ func toAPIField(f kindschema.Field) apigen.Field {
 		p := true
 		af.Pinned = &p
 	}
+	if f.Indexed {
+		idx := true
+		af.Indexed = &idx
+	}
 	if len(f.Values) > 0 {
 		v := f.Values
 		af.Values = &v

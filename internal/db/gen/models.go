@@ -19,6 +19,21 @@ type ApiKey struct {
 	DeletedAt  pgtype.Timestamptz `json:"deleted_at"`
 }
 
+type IndexedField struct {
+	ID           string             `json:"id"`
+	TenantID     string             `json:"tenant_id"`
+	KindID       string             `json:"kind_id"`
+	ModelID      string             `json:"model_id"`
+	FieldKey     string             `json:"field_key"`
+	StringValue  *string            `json:"string_value"`
+	NumericValue *float64           `json:"numeric_value"`
+	IntValue     *int64             `json:"int_value"`
+	BoolValue    *bool              `json:"bool_value"`
+	DateValue    pgtype.Timestamptz `json:"date_value"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Invite struct {
 	ID                  string             `json:"id"`
 	CodeHash            string             `json:"code_hash"`

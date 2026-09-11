@@ -54,6 +54,7 @@ type Field struct {
 	Type     FieldType `json:"type"`
 	Pinned   bool      `json:"pinned,omitempty"`
 	Required bool      `json:"required,omitempty"`
+	Indexed  bool      `json:"indexed,omitempty"`
 
 	// enum
 	Values []string `json:"values,omitempty"`

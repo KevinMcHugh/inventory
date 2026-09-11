@@ -386,6 +386,9 @@ components:
         required:
           type: boolean
           description: If true, model writes must supply a non-blank value for this field.
+        indexed:
+          type: boolean
+          description: If true, values for this field are materialized into indexed_fields for efficient search and sort.
         values:
           type: array
           items:
