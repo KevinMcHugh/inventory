@@ -13,11 +13,27 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
 	dbgen "github.com/KevinMcHugh/inventory/internal/db/gen"
 )
+
+// DateLayouts are the string shapes a TypeDate value is accepted in, tried
+// in order. Shared by body validation, index extraction, and search so all
+// three agree on what counts as a date.
+var DateLayouts = []string{time.RFC3339, "2006-01-02"}
+
+// ParseDate tries each of DateLayouts in turn.
+func ParseDate(s string) (time.Time, bool) {
+	for _, layout := range DateLayouts {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t, true
+		}
+	}
+	return time.Time{}, false
+}
 
 // VersionLoader is the narrow store surface LoadLatest needs. Both
 // *dbgen.Queries and per-endpoint store interfaces that declare this method

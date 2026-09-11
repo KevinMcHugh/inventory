@@ -141,6 +141,14 @@ func (s *Server) DeleteModel(ctx context.Context, req apigen.DeleteModelRequestO
 	return Run(ctx, models.DeleteEndpoint{Store: s.q}, req)
 }
 
+func (s *Server) SearchModels(ctx context.Context, req apigen.SearchModelsRequestObject) (apigen.SearchModelsResponseObject, error) {
+	resp, err := Run(ctx, models.SearchEndpoint{Store: s.q}, req)
+	if verrs, ok := asValidationErrors(err); ok {
+		return apigen.SearchModels400JSONResponse{BadRequestJSONResponse: validationErrorResponse(verrs)}, nil
+	}
+	return resp, err
+}
+
 // Compile-time assertion.
 var _ apigen.StrictServerInterface = (*Server)(nil)
 

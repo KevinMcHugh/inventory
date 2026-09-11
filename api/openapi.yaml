@@ -199,6 +199,91 @@ paths:
         "400":
           $ref: "#/components/responses/BadRequest"
 
+  /kinds/{kindId}/models/search:
+    parameters:
+      - $ref: "#/components/parameters/KindId"
+    get:
+      operationId: searchModels
+      summary: Filter and/or sort models of a kind by an indexed field
+      description: |
+        filterField and sortField must be keys of fields marked `indexed`
+        on the kind's latest schema; sortField defaults to filterField when
+        omitted. Comparison values are parsed according to the filter
+        field's declared type. Combining a lower and upper bound (e.g. gte
+        + lte) produces a range. contains is a substring match, valid only
+        for text/url/enum fields. Unindexed filterField, an unparsable
+        value, or an operator not valid for the field's type all return 400.
+      parameters:
+        - name: filterField
+          in: query
+          description: Indexed field key to filter on. Omit to skip filtering.
+          schema:
+            type: string
+        - name: eq
+          in: query
+          schema:
+            type: string
+        - name: ne
+          in: query
+          schema:
+            type: string
+        - name: lt
+          in: query
+          schema:
+            type: string
+        - name: lte
+          in: query
+          schema:
+            type: string
+        - name: gt
+          in: query
+          schema:
+            type: string
+        - name: gte
+          in: query
+          schema:
+            type: string
+        - name: contains
+          in: query
+          description: Substring match. Only valid for text/url/enum fields.
+          schema:
+            type: string
+        - name: sortField
+          in: query
+          description: Indexed field key to sort by. Defaults to filterField when omitted.
+          schema:
+            type: string
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: Matching models
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Model"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
   /kinds/{kindId}/models/{slug}:
     parameters:
       - $ref: "#/components/parameters/KindId"

@@ -9,19 +9,12 @@
 package indexedfields
 
 import (
-	"time"
-
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/rs/xid"
 
 	dbgen "github.com/KevinMcHugh/inventory/internal/db/gen"
 	"github.com/KevinMcHugh/inventory/internal/kindschema"
 )
-
-// dateLayouts are the string shapes a TypeDate value is accepted in. A value
-// that matches neither is left out of the index rather than failing the
-// model write -- indexing is best-effort, not a source of truth.
-var dateLayouts = []string{time.RFC3339, "2006-01-02"}
 
 // Extract computes one indexed_fields row per schema field marked Indexed
 // that has a present, well-typed value in body. Fields not marked Indexed,
@@ -97,13 +90,12 @@ func fillValue(row *dbgen.CreateIndexedFieldParams, f kindschema.Field, v any) b
 		if !ok {
 			return false
 		}
-		for _, layout := range dateLayouts {
-			if t, err := time.Parse(layout, s); err == nil {
-				row.DateValue = pgtype.Timestamptz{Time: t, Valid: true}
-				return true
-			}
+		t, ok := kindschema.ParseDate(s)
+		if !ok {
+			return false
 		}
-		return false
+		row.DateValue = pgtype.Timestamptz{Time: t, Valid: true}
+		return true
 
 	default:
 		// TypeTags (and any future array-shaped type) does not fit a single
