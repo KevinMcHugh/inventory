@@ -33,9 +33,14 @@ const (
 	// AuthCodeTTL is how long an authorization code is valid before the
 	// client must exchange it.
 	AuthCodeTTL = 10 * time.Minute
+	// RefreshTokenTTL is how long an issued refresh token is valid. Clients
+	// use it to mint a fresh access token without re-running the
+	// paste-a-key /oauth/authorize flow.
+	RefreshTokenTTL = 30 * 24 * time.Hour
 
-	AccessTokenPrefix = "inv_at_"
-	AuthCodePrefix    = "inv_ac_"
+	AccessTokenPrefix  = "inv_at_"
+	AuthCodePrefix     = "inv_ac_"
+	RefreshTokenPrefix = "inv_rt_"
 	ClientSecretPrefix = "inv_cs_"
 )
 

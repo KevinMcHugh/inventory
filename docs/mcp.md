@@ -122,7 +122,7 @@ Implemented in `internal/oauth/`. Endpoints:
 - `POST /oauth/register` — RFC 7591 dynamic client registration (public clients, PKCE-only).
 - `GET /oauth/authorize` — a small HTML form asking the user to paste an `inv_` key.
 - `POST /oauth/authorize` — validates the pasted key, mints a code, redirects to `redirect_uri`.
-- `POST /oauth/token` — PKCE-validated code → access token.
+- `POST /oauth/token` — PKCE-validated code → access token (`grant_type=authorization_code`), or refresh token → new access token (`grant_type=refresh_token`).
 
 The `WWW-Authenticate: Bearer resource_metadata=…` header on 401 tells conforming clients where discovery lives. `PUBLIC_URL` env var supplies the issuer origin so those URLs point at the right host.
 
@@ -132,7 +132,7 @@ The `WWW-Authenticate: Bearer resource_metadata=…` header on 401 tells conform
 - URL: `https://<host>/mcp/rpc`
 - Authentication: **Always required**
 - OAuth client: **No client ID — register one automatically** (DCR)
-- On first connect, Claude bounces the user through `/oauth/authorize` where they paste an `inv_` key. That approval issues an `inv_at_` access token bound to the caller's tenant, good for 24 hours.
+- On first connect, Claude bounces the user through `/oauth/authorize` where they paste an `inv_` key. That approval issues an `inv_at_` access token (good for 24 hours) plus an `inv_rt_` refresh token (good for 30 days). Conforming clients use the refresh token to mint a new access token as it nears expiry, so the paste-a-key form only reappears once the refresh token itself expires or is revoked.
 
 **Claude Desktop (raw key path):**
 - URL: `https://<host>/mcp/rpc`
@@ -143,5 +143,5 @@ The `WWW-Authenticate: Bearer resource_metadata=…` header on 401 tells conform
 - Keys are never stored in plaintext. `key_hash` (api keys) and `token_hash` (OAuth) are the only columns with secret material.
 - Rotate an api key: `./server keys rotate --key-id <xid>` (or `make keys-rotate KEY_ID=…`). Old key stops working immediately, new raw key printed once.
 - List keys: `./server keys list --tenant <xid>`. Mint more: `./server keys create --tenant <xid> --name <label>`.
-- OAuth access tokens expire on their own (24h). No separate revocation CLI yet — planned.
+- OAuth access tokens expire on their own (24h) but are refreshable via `grant_type=refresh_token` for 30 days without re-running `/oauth/authorize`. Refresh tokens are single-use and rotate on every refresh (the old token row is revoked and a new access+refresh pair is issued). No separate revocation CLI yet — planned.
 - `/health` and the OAuth discovery + flow endpoints are the only unauthenticated paths.
