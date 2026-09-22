@@ -88,14 +88,16 @@ type OauthCode struct {
 }
 
 type OauthToken struct {
-	ID        string             `json:"id"`
-	TokenHash string             `json:"token_hash"`
-	ClientID  *string            `json:"client_id"`
-	TenantID  string             `json:"tenant_id"`
-	Scope     *string            `json:"scope"`
-	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
-	RevokedAt pgtype.Timestamptz `json:"revoked_at"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ID               string             `json:"id"`
+	TokenHash        string             `json:"token_hash"`
+	ClientID         *string            `json:"client_id"`
+	TenantID         string             `json:"tenant_id"`
+	Scope            *string            `json:"scope"`
+	ExpiresAt        pgtype.Timestamptz `json:"expires_at"`
+	RevokedAt        pgtype.Timestamptz `json:"revoked_at"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	RefreshTokenHash *string            `json:"refresh_token_hash"`
+	RefreshExpiresAt pgtype.Timestamptz `json:"refresh_expires_at"`
 }
 
 type SsoLoginIntent struct {
