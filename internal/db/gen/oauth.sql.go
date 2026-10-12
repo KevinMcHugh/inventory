@@ -118,18 +118,25 @@ func (q *Queries) CreateOAuthCode(ctx context.Context, arg CreateOAuthCodeParams
 }
 
 const createOAuthToken = `-- name: CreateOAuthToken :one
-INSERT INTO oauth_tokens (id, token_hash, client_id, tenant_id, scope, expires_at)
-VALUES ($1, $2, $6, $3, $4, $5)
-RETURNING id, token_hash, client_id, tenant_id, scope, expires_at, revoked_at, created_at
+INSERT INTO oauth_tokens (
+    id, token_hash, client_id, tenant_id, scope, expires_at,
+    refresh_token_hash, refresh_expires_at
+) VALUES (
+    $1, $2, $6, $3, $4, $5,
+    $7, $8
+)
+RETURNING id, token_hash, client_id, tenant_id, scope, expires_at, revoked_at, created_at, refresh_token_hash, refresh_expires_at
 `
 
 type CreateOAuthTokenParams struct {
-	ID        string             `json:"id"`
-	TokenHash string             `json:"token_hash"`
-	TenantID  string             `json:"tenant_id"`
-	Scope     *string            `json:"scope"`
-	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
-	ClientID  *string            `json:"client_id"`
+	ID               string             `json:"id"`
+	TokenHash        string             `json:"token_hash"`
+	TenantID         string             `json:"tenant_id"`
+	Scope            *string            `json:"scope"`
+	ExpiresAt        pgtype.Timestamptz `json:"expires_at"`
+	ClientID         *string            `json:"client_id"`
+	RefreshTokenHash *string            `json:"refresh_token_hash"`
+	RefreshExpiresAt pgtype.Timestamptz `json:"refresh_expires_at"`
 }
 
 func (q *Queries) CreateOAuthToken(ctx context.Context, arg CreateOAuthTokenParams) (OauthToken, error) {
@@ -140,6 +147,8 @@ func (q *Queries) CreateOAuthToken(ctx context.Context, arg CreateOAuthTokenPara
 		arg.Scope,
 		arg.ExpiresAt,
 		arg.ClientID,
+		arg.RefreshTokenHash,
+		arg.RefreshExpiresAt,
 	)
 	var i OauthToken
 	err := row.Scan(
@@ -151,6 +160,8 @@ func (q *Queries) CreateOAuthToken(ctx context.Context, arg CreateOAuthTokenPara
 		&i.ExpiresAt,
 		&i.RevokedAt,
 		&i.CreatedAt,
+		&i.RefreshTokenHash,
+		&i.RefreshExpiresAt,
 	)
 	return i, err
 }
@@ -176,7 +187,7 @@ func (q *Queries) GetOAuthClient(ctx context.Context, id string) (OauthClient, e
 }
 
 const getOAuthTokenByHash = `-- name: GetOAuthTokenByHash :one
-SELECT oauth_tokens.id, oauth_tokens.token_hash, oauth_tokens.client_id, oauth_tokens.tenant_id, oauth_tokens.scope, oauth_tokens.expires_at, oauth_tokens.revoked_at, oauth_tokens.created_at FROM oauth_tokens
+SELECT oauth_tokens.id, oauth_tokens.token_hash, oauth_tokens.client_id, oauth_tokens.tenant_id, oauth_tokens.scope, oauth_tokens.expires_at, oauth_tokens.revoked_at, oauth_tokens.created_at, oauth_tokens.refresh_token_hash, oauth_tokens.refresh_expires_at FROM oauth_tokens
 JOIN tenants ON tenants.id = oauth_tokens.tenant_id AND tenants.deleted_at IS NULL
 WHERE token_hash = $1
   AND oauth_tokens.revoked_at IS NULL
@@ -195,6 +206,44 @@ func (q *Queries) GetOAuthTokenByHash(ctx context.Context, tokenHash string) (Oa
 		&i.ExpiresAt,
 		&i.RevokedAt,
 		&i.CreatedAt,
+		&i.RefreshTokenHash,
+		&i.RefreshExpiresAt,
 	)
 	return i, err
+}
+
+const getOAuthTokenByRefreshHash = `-- name: GetOAuthTokenByRefreshHash :one
+SELECT oauth_tokens.id, oauth_tokens.token_hash, oauth_tokens.client_id, oauth_tokens.tenant_id, oauth_tokens.scope, oauth_tokens.expires_at, oauth_tokens.revoked_at, oauth_tokens.created_at, oauth_tokens.refresh_token_hash, oauth_tokens.refresh_expires_at FROM oauth_tokens
+JOIN tenants ON tenants.id = oauth_tokens.tenant_id AND tenants.deleted_at IS NULL
+WHERE refresh_token_hash = $1
+  AND oauth_tokens.revoked_at IS NULL
+  AND oauth_tokens.refresh_expires_at > NOW()
+`
+
+func (q *Queries) GetOAuthTokenByRefreshHash(ctx context.Context, refreshTokenHash *string) (OauthToken, error) {
+	row := q.db.QueryRow(ctx, getOAuthTokenByRefreshHash, refreshTokenHash)
+	var i OauthToken
+	err := row.Scan(
+		&i.ID,
+		&i.TokenHash,
+		&i.ClientID,
+		&i.TenantID,
+		&i.Scope,
+		&i.ExpiresAt,
+		&i.RevokedAt,
+		&i.CreatedAt,
+		&i.RefreshTokenHash,
+		&i.RefreshExpiresAt,
+	)
+	return i, err
+}
+
+const revokeOAuthToken = `-- name: RevokeOAuthToken :exec
+UPDATE oauth_tokens SET revoked_at = NOW()
+WHERE id = $1 AND revoked_at IS NULL
+`
+
+func (q *Queries) RevokeOAuthToken(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, revokeOAuthToken, id)
+	return err
 }

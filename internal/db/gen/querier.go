@@ -43,6 +43,7 @@ type Querier interface {
 	GetModelBySlug(ctx context.Context, arg GetModelBySlugParams) (Model, error)
 	GetOAuthClient(ctx context.Context, id string) (OauthClient, error)
 	GetOAuthTokenByHash(ctx context.Context, tokenHash string) (OauthToken, error)
+	GetOAuthTokenByRefreshHash(ctx context.Context, refreshTokenHash *string) (OauthToken, error)
 	GetTenant(ctx context.Context, id string) (Tenant, error)
 	GetUserIdentityByProviderSubject(ctx context.Context, arg GetUserIdentityByProviderSubjectParams) (UserIdentity, error)
 	ListAPIKeysByTenant(ctx context.Context, tenantID string) ([]ApiKey, error)
@@ -53,6 +54,7 @@ type Querier interface {
 	ListModelsByKind(ctx context.Context, arg ListModelsByKindParams) ([]Model, error)
 	ListTenants(ctx context.Context) ([]Tenant, error)
 	PurgeExpiredSSOIntents(ctx context.Context) error
+	RevokeOAuthToken(ctx context.Context, id string) error
 	SearchModelsByBoolFieldAsc(ctx context.Context, arg SearchModelsByBoolFieldAscParams) ([]Model, error)
 	SearchModelsByBoolFieldDesc(ctx context.Context, arg SearchModelsByBoolFieldDescParams) ([]Model, error)
 	SearchModelsByDateFieldAsc(ctx context.Context, arg SearchModelsByDateFieldAscParams) ([]Model, error)

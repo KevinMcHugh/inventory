@@ -44,6 +44,42 @@ func (h *Handler) MintAccessToken(
 	return raw, nil
 }
 
+// mintedTokenPair is the raw access + refresh token strings returned by the
+// token endpoint. Only their hashes are persisted.
+type mintedTokenPair struct {
+	AccessToken  string
+	RefreshToken string
+}
+
+// mintTokenPair issues a fresh access token bound to a fresh refresh token,
+// both tied to the same oauth_tokens row so refreshing can revoke the old
+// row and rotate to a new pair. Used by the /oauth/token authorization_code
+// and refresh_token grants.
+func (h *Handler) mintTokenPair(ctx context.Context, clientID *string, tenantID, scope string) (mintedTokenPair, error) {
+	rawAccess, err := randToken(AccessTokenPrefix)
+	if err != nil {
+		return mintedTokenPair{}, err
+	}
+	rawRefresh, err := randToken(RefreshTokenPrefix)
+	if err != nil {
+		return mintedTokenPair{}, err
+	}
+	refreshHash := hashToken(rawRefresh)
+	if _, err := h.Q.CreateOAuthToken(ctx, dbgen.CreateOAuthTokenParams{
+		ID:               xid.New().String(),
+		TokenHash:        hashToken(rawAccess),
+		ClientID:         clientID,
+		TenantID:         tenantID,
+		Scope:            nullable(scope),
+		ExpiresAt:        timestamptzFrom(time.Now().Add(AccessTokenTTL)),
+		RefreshTokenHash: &refreshHash,
+		RefreshExpiresAt: timestamptzFrom(time.Now().Add(RefreshTokenTTL)),
+	}); err != nil {
+		return mintedTokenPair{}, err
+	}
+	return mintedTokenPair{AccessToken: rawAccess, RefreshToken: rawRefresh}, nil
+}
+
 // MintAuthzCodeParams is the input for MintAuthzCode.
 type MintAuthzCodeParams struct {
 	ClientID            string

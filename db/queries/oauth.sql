@@ -23,8 +23,13 @@ WHERE code_hash = $1
 RETURNING *;
 
 -- name: CreateOAuthToken :one
-INSERT INTO oauth_tokens (id, token_hash, client_id, tenant_id, scope, expires_at)
-VALUES ($1, $2, sqlc.narg(client_id), $3, $4, $5)
+INSERT INTO oauth_tokens (
+    id, token_hash, client_id, tenant_id, scope, expires_at,
+    refresh_token_hash, refresh_expires_at
+) VALUES (
+    $1, $2, sqlc.narg(client_id), $3, $4, $5,
+    sqlc.narg(refresh_token_hash), sqlc.narg(refresh_expires_at)
+)
 RETURNING *;
 
 -- name: GetOAuthTokenByHash :one
@@ -33,3 +38,14 @@ JOIN tenants ON tenants.id = oauth_tokens.tenant_id AND tenants.deleted_at IS NU
 WHERE token_hash = $1
   AND oauth_tokens.revoked_at IS NULL
   AND oauth_tokens.expires_at > NOW();
+
+-- name: GetOAuthTokenByRefreshHash :one
+SELECT oauth_tokens.* FROM oauth_tokens
+JOIN tenants ON tenants.id = oauth_tokens.tenant_id AND tenants.deleted_at IS NULL
+WHERE refresh_token_hash = $1
+  AND oauth_tokens.revoked_at IS NULL
+  AND oauth_tokens.refresh_expires_at > NOW();
+
+-- name: RevokeOAuthToken :exec
+UPDATE oauth_tokens SET revoked_at = NOW()
+WHERE id = $1 AND revoked_at IS NULL;
