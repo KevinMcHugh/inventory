@@ -17,6 +17,7 @@ type Querier interface {
 	ConsumeOAuthCode(ctx context.Context, codeHash string) (OauthCode, error)
 	ConsumeSSOLoginIntent(ctx context.Context, state string) (SsoLoginIntent, error)
 	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (ApiKey, error)
+	CreateIndexedField(ctx context.Context, arg CreateIndexedFieldParams) (IndexedField, error)
 	CreateInvite(ctx context.Context, arg CreateInviteParams) (Invite, error)
 	CreateKind(ctx context.Context, arg CreateKindParams) (Kind, error)
 	CreateKindVersion(ctx context.Context, arg CreateKindVersionParams) (KindVersion, error)
@@ -28,6 +29,8 @@ type Querier interface {
 	CreateTenant(ctx context.Context, arg CreateTenantParams) (Tenant, error)
 	CreateUserIdentity(ctx context.Context, arg CreateUserIdentityParams) (UserIdentity, error)
 	DeleteAPIKey(ctx context.Context, id string) error
+	DeleteIndexedFieldsByModel(ctx context.Context, arg DeleteIndexedFieldsByModelParams) error
+	DeleteIndexedFieldsByModelSlug(ctx context.Context, arg DeleteIndexedFieldsByModelSlugParams) error
 	DeleteKind(ctx context.Context, arg DeleteKindParams) error
 	DeleteModelBySlug(ctx context.Context, arg DeleteModelBySlugParams) error
 	DeleteTenant(ctx context.Context, id string) error
@@ -45,13 +48,38 @@ type Querier interface {
 	GetUserIdentityByProviderSubject(ctx context.Context, arg GetUserIdentityByProviderSubjectParams) (UserIdentity, error)
 	ListAPIKeysByTenant(ctx context.Context, tenantID string) ([]ApiKey, error)
 	ListActiveInvites(ctx context.Context) ([]Invite, error)
+	ListIndexedFieldsByModel(ctx context.Context, arg ListIndexedFieldsByModelParams) ([]IndexedField, error)
 	ListKindVersionsByKind(ctx context.Context, kindID string) ([]KindVersion, error)
 	ListKindsByTenant(ctx context.Context, tenantID string) ([]Kind, error)
 	ListModelsByKind(ctx context.Context, arg ListModelsByKindParams) ([]Model, error)
 	ListTenants(ctx context.Context) ([]Tenant, error)
 	PurgeExpiredSSOIntents(ctx context.Context) error
 	RevokeOAuthToken(ctx context.Context, id string) error
+	SearchModelsByBoolFieldAsc(ctx context.Context, arg SearchModelsByBoolFieldAscParams) ([]Model, error)
+	SearchModelsByBoolFieldDesc(ctx context.Context, arg SearchModelsByBoolFieldDescParams) ([]Model, error)
+	SearchModelsByDateFieldAsc(ctx context.Context, arg SearchModelsByDateFieldAscParams) ([]Model, error)
+	SearchModelsByDateFieldDesc(ctx context.Context, arg SearchModelsByDateFieldDescParams) ([]Model, error)
+	SearchModelsByIntFieldAsc(ctx context.Context, arg SearchModelsByIntFieldAscParams) ([]Model, error)
+	SearchModelsByIntFieldDesc(ctx context.Context, arg SearchModelsByIntFieldDescParams) ([]Model, error)
+	SearchModelsByNumericFieldAsc(ctx context.Context, arg SearchModelsByNumericFieldAscParams) ([]Model, error)
+	SearchModelsByNumericFieldDesc(ctx context.Context, arg SearchModelsByNumericFieldDescParams) ([]Model, error)
+	SearchModelsByStringFieldAsc(ctx context.Context, arg SearchModelsByStringFieldAscParams) ([]Model, error)
+	SearchModelsByStringFieldDesc(ctx context.Context, arg SearchModelsByStringFieldDescParams) ([]Model, error)
 	SetInviteUsedBy(ctx context.Context, arg SetInviteUsedByParams) error
+	// Search/sort model queries. There is one filtered+sorted query per
+	// indexed_fields value type (string/numeric/int/bool/date) plus one
+	// sort-only pair with no filter join, and each comes in an Asc/Desc variant
+	// since ORDER BY direction cannot be bound as a parameter in static SQL.
+	//
+	// Every query orders by all five typed columns of the sort join (sf) in
+	// sequence. Because a given field_key is only ever written to one of those
+	// columns (see internal/indexedfields), the other four are uniformly NULL
+	// across the whole result set and act as no-op tiebreakers -- so one query
+	// shape sorts correctly regardless of the sort field's actual type. A
+	// final m.created_at DESC keeps ordering deterministic when the sort field
+	// is absent or ties.
+	SortModelsByFieldAsc(ctx context.Context, arg SortModelsByFieldAscParams) ([]Model, error)
+	SortModelsByFieldDesc(ctx context.Context, arg SortModelsByFieldDescParams) ([]Model, error)
 	TouchAPIKey(ctx context.Context, id string) error
 	TouchUserIdentity(ctx context.Context, arg TouchUserIdentityParams) error
 	UpdateKind(ctx context.Context, arg UpdateKindParams) (Kind, error)

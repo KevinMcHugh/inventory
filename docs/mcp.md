@@ -67,6 +67,7 @@ Read (in `read.go`):
 - `list_kind_versions` — `(kindId)`
 - `list_models` — `(kindId)`
 - `get_model` — `(kindId, slug)`
+- `search_models` — `(kindId, filterField?, eq?/ne?/lt?/lte?/gt?/gte?/contains?, sortField?, sortOrder?, limit?, offset?)` — filter/sort by a field marked `indexed` on the kind's schema
 
 Write (in `write.go`):
 - `create_kind` — `(name, description?)`

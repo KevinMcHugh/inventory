@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -57,6 +58,24 @@ func (e FieldType) Valid() bool {
 	}
 }
 
+// Defines values for SearchModelsParamsSortOrder.
+const (
+	Asc  SearchModelsParamsSortOrder = "asc"
+	Desc SearchModelsParamsSortOrder = "desc"
+)
+
+// Valid indicates whether the value is a known member of the SearchModelsParamsSortOrder enum.
+func (e SearchModelsParamsSortOrder) Valid() bool {
+	switch e {
+	case Asc:
+		return true
+	case Desc:
+		return true
+	default:
+		return false
+	}
+}
+
 // Error defines model for Error.
 type Error struct {
 	Code *string `json:"code,omitempty"`
@@ -68,6 +87,9 @@ type Error struct {
 
 // Field defines model for Field.
 type Field struct {
+	// Indexed If true, values for this field are materialized into indexed_fields for efficient search and sort.
+	Indexed *bool `json:"indexed,omitempty"`
+
 	// Key The property name inside model.body.
 	Key string `json:"key"`
 
@@ -211,6 +233,30 @@ type BadRequest = Error
 // NotFound defines model for NotFound.
 type NotFound = Error
 
+// SearchModelsParams defines parameters for SearchModels.
+type SearchModelsParams struct {
+	// FilterField Indexed field key to filter on. Omit to skip filtering.
+	FilterField *string `form:"filterField,omitempty" json:"filterField,omitempty"`
+	Eq          *string `form:"eq,omitempty" json:"eq,omitempty"`
+	Ne          *string `form:"ne,omitempty" json:"ne,omitempty"`
+	Lt          *string `form:"lt,omitempty" json:"lt,omitempty"`
+	Lte         *string `form:"lte,omitempty" json:"lte,omitempty"`
+	Gt          *string `form:"gt,omitempty" json:"gt,omitempty"`
+	Gte         *string `form:"gte,omitempty" json:"gte,omitempty"`
+
+	// Contains Substring match. Only valid for text/url/enum fields.
+	Contains *string `form:"contains,omitempty" json:"contains,omitempty"`
+
+	// SortField Indexed field key to sort by. Defaults to filterField when omitted.
+	SortField *string                      `form:"sortField,omitempty" json:"sortField,omitempty"`
+	SortOrder *SearchModelsParamsSortOrder `form:"sortOrder,omitempty" json:"sortOrder,omitempty"`
+	Limit     *int                         `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset    *int                         `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// SearchModelsParamsSortOrder defines parameters for SearchModels.
+type SearchModelsParamsSortOrder string
+
 // CreateKindJSONRequestBody defines body for CreateKind for application/json ContentType.
 type CreateKindJSONRequestBody = KindCreate
 
@@ -255,6 +301,9 @@ type ServerInterface interface {
 	// CreateModel Create a model
 	// (POST /kinds/{kindId}/models)
 	CreateModel(w http.ResponseWriter, r *http.Request, kindId KindId)
+	// SearchModels Filter and/or sort models of a kind by an indexed field
+	// (GET /kinds/{kindId}/models/search)
+	SearchModels(w http.ResponseWriter, r *http.Request, kindId KindId, params SearchModelsParams)
 	// DeleteModel Soft-delete a model
 	// (DELETE /kinds/{kindId}/models/{slug})
 	DeleteModel(w http.ResponseWriter, r *http.Request, kindId KindId, slug Slug)
@@ -330,6 +379,12 @@ func (_ Unimplemented) ListModels(w http.ResponseWriter, r *http.Request, kindId
 // CreateModel Create a model
 // (POST /kinds/{kindId}/models)
 func (_ Unimplemented) CreateModel(w http.ResponseWriter, r *http.Request, kindId KindId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// SearchModels Filter and/or sort models of a kind by an indexed field
+// (GET /kinds/{kindId}/models/search)
+func (_ Unimplemented) SearchModels(w http.ResponseWriter, r *http.Request, kindId KindId, params SearchModelsParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -553,6 +608,191 @@ func (siw *ServerInterfaceWrapper) CreateModel(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateModel(w, r, kindId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SearchModels operation middleware
+func (siw *ServerInterfaceWrapper) SearchModels(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "kindId" -------------
+	var kindId KindId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "kindId", chi.URLParam(r, "kindId"), &kindId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "kindId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SearchModelsParams
+
+	// ------------- Optional query parameter "filterField" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "filterField", r.URL.Query(), &params.FilterField, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "filterField"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "filterField", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "eq" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "eq", r.URL.Query(), &params.Eq, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "eq"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "eq", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "ne" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "ne", r.URL.Query(), &params.Ne, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "ne"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ne", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "lt" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "lt", r.URL.Query(), &params.Lt, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "lt"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "lt", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "lte" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "lte", r.URL.Query(), &params.Lte, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "lte"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "lte", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "gt" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "gt", r.URL.Query(), &params.Gt, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "gt"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "gt", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "gte" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "gte", r.URL.Query(), &params.Gte, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "gte"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "gte", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "contains" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "contains", r.URL.Query(), &params.Contains, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "contains"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "contains", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "sortField" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "sortField", r.URL.Query(), &params.SortField, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "sortField"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sortField", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "sortOrder" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "sortOrder", r.URL.Query(), &params.SortOrder, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "sortOrder"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sortOrder", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "offset", r.URL.Query(), &params.Offset, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "offset"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "offset", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SearchModels(w, r, kindId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -926,6 +1166,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/kinds/{kindId}/models", wrapper.CreateModel)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/kinds/{kindId}/models/search", wrapper.SearchModels)
+	})
+	r.Group(func(r chi.Router) {
 		r.Delete(options.BaseURL+"/kinds/{kindId}/models/{slug}", wrapper.DeleteModel)
 	})
 	r.Group(func(r chi.Router) {
@@ -1129,6 +1372,43 @@ func (response CreateModel201JSONResponse) VisitCreateModelResponse(w http.Respo
 type CreateModel400JSONResponse struct{ BadRequestJSONResponse }
 
 func (response CreateModel400JSONResponse) VisitCreateModelResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SearchModelsRequestObject struct {
+	KindId KindId `json:"kindId"`
+	Params SearchModelsParams
+}
+
+type SearchModelsResponseObject interface {
+	VisitSearchModelsResponse(w http.ResponseWriter) error
+}
+
+type SearchModels200JSONResponse []Model
+
+func (response SearchModels200JSONResponse) VisitSearchModelsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SearchModels400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response SearchModels400JSONResponse) VisitSearchModelsResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1382,6 +1662,9 @@ type StrictServerInterface interface {
 	// CreateModel Create a model
 	// (POST /kinds/{kindId}/models)
 	CreateModel(ctx context.Context, request CreateModelRequestObject) (CreateModelResponseObject, error)
+	// SearchModels Filter and/or sort models of a kind by an indexed field
+	// (GET /kinds/{kindId}/models/search)
+	SearchModels(ctx context.Context, request SearchModelsRequestObject) (SearchModelsResponseObject, error)
 	// DeleteModel Soft-delete a model
 	// (DELETE /kinds/{kindId}/models/{slug})
 	DeleteModel(ctx context.Context, request DeleteModelRequestObject) (DeleteModelResponseObject, error)
@@ -1670,6 +1953,33 @@ func (sh *strictHandler) CreateModel(w http.ResponseWriter, r *http.Request, kin
 	}
 }
 
+// SearchModels operation middleware
+func (sh *strictHandler) SearchModels(w http.ResponseWriter, r *http.Request, kindId KindId, params SearchModelsParams) {
+	var request SearchModelsRequestObject
+
+	request.KindId = kindId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SearchModels(ctx, request.(SearchModelsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SearchModels")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SearchModelsResponseObject); ok {
+		if err := validResponse.VisitSearchModelsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // DeleteModel operation middleware
 func (sh *strictHandler) DeleteModel(w http.ResponseWriter, r *http.Request, kindId KindId, slug Slug) {
 	var request DeleteModelRequestObject
@@ -1903,38 +2213,47 @@ func (sh *strictHandler) UpdateTenant(w http.ResponseWriter, r *http.Request) {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
+	"2jg//3H244yC4/8CAAD//w==",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

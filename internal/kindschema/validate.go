@@ -101,7 +101,7 @@ func validateOne(f Field, v any) string {
 		return ""
 
 	case TypeNumber, TypeInteger:
-		n, ok := numeric(v)
+		n, ok := Numeric(v)
 		if !ok {
 			return "expected a number"
 		}
@@ -146,7 +146,9 @@ func validateOne(f Field, v any) string {
 	return ""
 }
 
-func numeric(v any) (float64, bool) {
+// Numeric coerces a decoded JSON value into a float64, accepting any of the
+// numeric types encoding/json (or a caller) might produce.
+func Numeric(v any) (float64, bool) {
 	switch n := v.(type) {
 	case float64:
 		return n, true

@@ -55,6 +55,26 @@ type GetModelOutput struct {
 	Model models.ViewModel `json:"model"`
 }
 
+type SearchModelsInput struct {
+	KindID      string  `json:"kindId" jsonschema:"kind xid"`
+	FilterField *string `json:"filterField,omitempty" jsonschema:"indexed field key to filter on; omit to skip filtering"`
+	Eq          *string `json:"eq,omitempty" jsonschema:"equals"`
+	Ne          *string `json:"ne,omitempty" jsonschema:"not equal to"`
+	Lt          *string `json:"lt,omitempty" jsonschema:"less than (number/integer/date fields)"`
+	Lte         *string `json:"lte,omitempty" jsonschema:"less than or equal to (number/integer/date fields)"`
+	Gt          *string `json:"gt,omitempty" jsonschema:"greater than (number/integer/date fields)"`
+	Gte         *string `json:"gte,omitempty" jsonschema:"greater than or equal to (number/integer/date fields); combine with lte for a range"`
+	Contains    *string `json:"contains,omitempty" jsonschema:"substring match; text/url/enum fields only"`
+	SortField   *string `json:"sortField,omitempty" jsonschema:"indexed field key to sort by; defaults to filterField when omitted"`
+	SortOrder   *string `json:"sortOrder,omitempty" jsonschema:"asc or desc, default asc"`
+	Limit       *int    `json:"limit,omitempty" jsonschema:"max results, default 50, max 200"`
+	Offset      *int    `json:"offset,omitempty" jsonschema:"results to skip, default 0"`
+}
+
+type SearchModelsOutput struct {
+	Models []models.ViewModel `json:"models"`
+}
+
 type GetKindSchemaInput struct {
 	KindID string `json:"kindId" jsonschema:"kind xid"`
 }
@@ -129,6 +149,38 @@ func registerReadTools(s *mcpsdk.Server, q dbgen.Querier) {
 			return nil, GetModelOutput{}, err
 		}
 		return nil, GetModelOutput{Model: vm}, nil
+	})
+
+	mcpsdk.AddTool(s, &mcpsdk.Tool{
+		Name:        "search_models",
+		Description: "Filter and/or sort models of a kind by an indexed field. filterField and sortField must be marked indexed on the kind's latest schema (see get_kind_schema); sortField defaults to filterField. Combine gte and lte for a range.",
+	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, in SearchModelsInput) (*mcpsdk.CallToolResult, SearchModelsOutput, error) {
+		var sortOrder *apigen.SearchModelsParamsSortOrder
+		if in.SortOrder != nil {
+			v := apigen.SearchModelsParamsSortOrder(*in.SortOrder)
+			sortOrder = &v
+		}
+		vm, err := server.BuildViewModel(ctx, models.SearchEndpoint{Store: q}, apigen.SearchModelsRequestObject{
+			KindId: in.KindID,
+			Params: apigen.SearchModelsParams{
+				FilterField: in.FilterField,
+				Eq:          in.Eq,
+				Ne:          in.Ne,
+				Lt:          in.Lt,
+				Lte:         in.Lte,
+				Gt:          in.Gt,
+				Gte:         in.Gte,
+				Contains:    in.Contains,
+				SortField:   in.SortField,
+				SortOrder:   sortOrder,
+				Limit:       in.Limit,
+				Offset:      in.Offset,
+			},
+		})
+		if err != nil {
+			return nil, SearchModelsOutput{}, err
+		}
+		return nil, SearchModelsOutput{Models: vm}, nil
 	})
 
 	mcpsdk.AddTool(s, &mcpsdk.Tool{
