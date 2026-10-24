@@ -1,0 +1,61 @@
+name: deploy
+
+# Every push to main is checked and, if green, deployed to the fly.io sprite.
+# PRs run the checks only. See docs/deploy.md for the one-time setup
+# (SPRITES_TOKEN secret, optional SPRITE_NAME / PUBLIC_URL variables).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: go build ./...
+      - run: go test ./...
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: build web
+        working-directory: web
+        run: npm install --no-audit --no-fund && npm run build
+
+  deploy:
+    needs: check
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ vars.PUBLIC_URL || 'https://inventory-b2mxg.sprites.app' }}
+    # One deploy at a time; a queued deploy waits rather than cancelling one
+    # that may be mid-migration.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: deploy/sprite-deploy/go.mod
+          cache-dependency-path: deploy/sprite-deploy/go.sum
+      - name: deploy to sprite
+        working-directory: deploy/sprite-deploy
+        env:
+          SPRITES_TOKEN: ${{ secrets.SPRITES_TOKEN }}
+          SPRITE_NAME: ${{ vars.SPRITE_NAME || 'inventory' }}
+        run: go run . -sha "$GITHUB_SHA"
+      - name: smoke test public url
+        env:
+          PUBLIC_URL: ${{ vars.PUBLIC_URL || 'https://inventory-b2mxg.sprites.app' }}
+        run: curl -fsS --retry 5 --retry-delay 3 --retry-all-errors "$PUBLIC_URL/health"
