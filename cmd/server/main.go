@@ -41,8 +41,10 @@ func main() {
 		err = runKeys(os.Args[2:])
 	case "invites":
 		err = runInvites(os.Args[2:])
+	case "reindex":
+		err = runReindex(os.Args[2:])
 	default:
-		err = fmt.Errorf("unknown command %q; use one of: serve, bootstrap, keys, invites", cmd)
+		err = fmt.Errorf("unknown command %q; use one of: serve, bootstrap, keys, invites, reindex", cmd)
 	}
 	if err != nil {
 		slog.Error("command failed", "err", err)

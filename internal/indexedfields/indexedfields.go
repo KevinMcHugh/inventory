@@ -3,18 +3,48 @@
 // sort on JSONB body properties without scanning the whole body.
 //
 // Which properties get indexed, and as what type, is declared on the
-// kind_version's schema (kindschema.Field.Indexed). This package only does
-// the schema-driven extraction; callers own writing the rows and keeping
-// them in sync with the model.
+// kind_version's schema (kindschema.Field.Indexed). Extract does the
+// schema-driven extraction; Rebuild writes the result for one model, and is
+// shared by the model write path and the reindex CLI command.
 package indexedfields
 
 import (
+	"context"
+	"errors"
+	"fmt"
+
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/rs/xid"
 
 	dbgen "github.com/KevinMcHugh/inventory/internal/db/gen"
 	"github.com/KevinMcHugh/inventory/internal/kindschema"
 )
+
+// Store is the narrow surface Rebuild needs to replace a model's rows.
+type Store interface {
+	DeleteIndexedFieldsByModel(ctx context.Context, arg dbgen.DeleteIndexedFieldsByModelParams) error
+	CreateIndexedField(ctx context.Context, arg dbgen.CreateIndexedFieldParams) (dbgen.IndexedField, error)
+}
+
+// Rebuild replaces a model's indexed_fields rows with ones extracted from
+// body under schema s. A failure to clear the old rows stops early; a
+// failure on one field does not stop the others, and all such failures come
+// back joined.
+func Rebuild(ctx context.Context, store Store, s *kindschema.Schema, tenantID, kindID, modelID string, body map[string]any) error {
+	if err := store.DeleteIndexedFieldsByModel(ctx, dbgen.DeleteIndexedFieldsByModelParams{
+		TenantID: tenantID,
+		ModelID:  modelID,
+	}); err != nil {
+		return fmt.Errorf("clear indexed fields: %w", err)
+	}
+	var errs []error
+	for _, row := range Extract(s, tenantID, kindID, modelID, body) {
+		if _, err := store.CreateIndexedField(ctx, row); err != nil {
+			errs = append(errs, fmt.Errorf("create indexed field %q: %w", row.FieldKey, err))
+		}
+	}
+	return errors.Join(errs...)
+}
 
 // Extract computes one indexed_fields row per schema field marked Indexed
 // that has a present, well-typed value in body. Fields not marked Indexed,
