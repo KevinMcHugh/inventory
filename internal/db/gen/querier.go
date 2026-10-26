@@ -52,6 +52,9 @@ type Querier interface {
 	ListKindVersionsByKind(ctx context.Context, kindID string) ([]KindVersion, error)
 	ListKindsByTenant(ctx context.Context, tenantID string) ([]Kind, error)
 	ListModelsByKind(ctx context.Context, arg ListModelsByKindParams) ([]Model, error)
+	// Keyset page over a kind's models in id order, for batch jobs (reindex)
+	// that walk every model without holding one huge result set.
+	ListModelsByKindAfterID(ctx context.Context, arg ListModelsByKindAfterIDParams) ([]Model, error)
 	ListTenants(ctx context.Context) ([]Tenant, error)
 	PurgeExpiredSSOIntents(ctx context.Context) error
 	RevokeOAuthToken(ctx context.Context, id string) error

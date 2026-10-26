@@ -62,6 +62,7 @@ web/                    Vite + React + TypeScript UI
 | `make keys-list TENANT=…`              | list active api keys for a tenant                                   |
 | `make keys-create TENANT=… NAME=…`     | mint an additional api key                                          |
 | `make keys-rotate KEY_ID=…`            | soft-delete a key and mint a replacement with the same label        |
+| `make reindex TENANT=… KIND=…`         | rebuild indexed fields for every model of a kind (after marking a field `indexed`) |
 | `make generate`                        | regenerate sqlc + oapi-codegen (after any spec or SQL change)       |
 | `make migrate`                         | `dbmate up`                                                         |
 | `make run`                             | just the API server                                                 |
