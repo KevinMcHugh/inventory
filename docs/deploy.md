@@ -107,7 +107,26 @@ authorize URL) and on the web sign-in screen.
 - **Env vars for services** live on the service definition (`--env`); shell profile env vars only apply to interactive `sprite exec` sessions.
 - **`--http-port` may only be set on one service.** That is the inventory server here; postgres listens only on localhost + unix socket.
 
-## Redeploy after a code change
+## Continuous deployment (GitHub Actions)
+
+`.github/workflows/deploy.yml` runs on every push to `main`:
+
+1. **check** — `go vet`, `go build`, `go test`, and the web build. PRs run this job only.
+2. **deploy** — `deploy/sprite-deploy` (a small Go program on the sprites SDK, kept as its own module) takes a sprite checkpoint named `pre-deploy <sha>`, then on the sprite runs `git merge --ff-only <sha>` followed by `deploy/redeploy.sh`. That script migrates, builds the server to a temp path, builds the web UI, reinstalls `run-postgres.sh` if it changed, swaps the binary in, restarts the `inventory` service, and waits for `/health`. The job fails if any step fails.
+3. A final step curls `$PUBLIC_URL/health` from outside.
+
+Deploys run one at a time (`concurrency: deploy-production`); a queued deploy waits instead of cancelling one that may be mid-migration.
+
+### One-time setup
+
+- **Secret `SPRITES_TOKEN`** (repo → Settings → Secrets and variables → Actions): a Sprites API token for the org that owns the sprite. Create one from the sprites.dev dashboard, or exchange a Fly token for one (`POST https://api.sprites.dev/v1/organizations/<org>/tokens` with `Authorization: FlyV1 <fly token>`).
+- **Variables (optional)**: `SPRITE_NAME` (default `inventory`) and `PUBLIC_URL` (default `https://inventory-b2mxg.sprites.app`).
+- The sprite checkout at `~/inventory` must be on `main` with no local commits, so the fast-forward works.
+- The job uses a `production` GitHub environment, which is created automatically. Add required reviewers to it if you want a manual gate.
+
+To deploy without pushing, run the workflow by hand from the Actions tab (`workflow_dispatch`). To roll back, restore the `pre-deploy` checkpoint (see below).
+
+## Redeploy by hand
 
 ```sh
 # On your machine
