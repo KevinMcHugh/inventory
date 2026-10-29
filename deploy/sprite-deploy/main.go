@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
+	"strings"
 	"time"
 
 	sprites "github.com/superfly/sprites-go"
@@ -34,7 +35,9 @@ func main() {
 	timeout := flag.Duration("timeout", 15*time.Minute, "overall deploy timeout")
 	flag.Parse()
 
-	token := os.Getenv("SPRITES_TOKEN")
+	// Trim so a secret pasted with a trailing newline still makes a valid
+	// Authorization header.
+	token := strings.TrimSpace(os.Getenv("SPRITES_TOKEN"))
 	if token == "" {
 		log.Fatal("SPRITES_TOKEN is not set")
 	}
