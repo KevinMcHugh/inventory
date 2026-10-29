@@ -162,6 +162,60 @@ func (q *Queries) ListModelsByKind(ctx context.Context, arg ListModelsByKindPara
 	return items, nil
 }
 
+const listModelsByKindAfterID = `-- name: ListModelsByKindAfterID :many
+SELECT id, tenant_id, kind_id, kind_version_id, slug, body, created_at, updated_at, deleted_at FROM models
+WHERE tenant_id = $1
+  AND kind_id = $2
+  AND id > $3
+  AND deleted_at IS NULL
+ORDER BY id
+LIMIT $4
+`
+
+type ListModelsByKindAfterIDParams struct {
+	TenantID string `json:"tenant_id"`
+	KindID   string `json:"kind_id"`
+	AfterID  string `json:"after_id"`
+	PageSize int32  `json:"page_size"`
+}
+
+// Keyset page over a kind's models in id order, for batch jobs (reindex)
+// that walk every model without holding one huge result set.
+func (q *Queries) ListModelsByKindAfterID(ctx context.Context, arg ListModelsByKindAfterIDParams) ([]Model, error) {
+	rows, err := q.db.Query(ctx, listModelsByKindAfterID,
+		arg.TenantID,
+		arg.KindID,
+		arg.AfterID,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Model{}
+	for rows.Next() {
+		var i Model
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.KindID,
+			&i.KindVersionID,
+			&i.Slug,
+			&i.Body,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateModelBySlug = `-- name: UpdateModelBySlug :one
 UPDATE models
 SET body = $4,

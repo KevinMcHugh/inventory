@@ -29,3 +29,14 @@ UPDATE models
 SET deleted_at = NOW(),
     updated_at = NOW()
 WHERE tenant_id = $1 AND kind_id = $2 AND slug = $3 AND deleted_at IS NULL;
+
+-- name: ListModelsByKindAfterID :many
+-- Keyset page over a kind's models in id order, for batch jobs (reindex)
+-- that walk every model without holding one huge result set.
+SELECT * FROM models
+WHERE tenant_id = @tenant_id
+  AND kind_id = @kind_id
+  AND id > @after_id
+  AND deleted_at IS NULL
+ORDER BY id
+LIMIT @page_size;

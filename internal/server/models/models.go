@@ -297,28 +297,12 @@ func loadSchema(ctx context.Context, q kindschema.VersionByIDLoader, versionID s
 	return s
 }
 
-// indexStore is the narrow surface reindex needs to refresh a model's
-// indexed_fields rows.
-type indexStore interface {
-	DeleteIndexedFieldsByModel(ctx context.Context, arg dbgen.DeleteIndexedFieldsByModelParams) error
-	CreateIndexedField(ctx context.Context, arg dbgen.CreateIndexedFieldParams) (dbgen.IndexedField, error)
-}
-
 // reindex refreshes a model's indexed_fields rows to match its current body.
 // It runs after the model write has already succeeded and is best-effort:
 // indexed_fields is a derived search index, not the model's source of truth,
 // so a failure here is logged rather than surfaced as a write failure.
-func reindex(ctx context.Context, store indexStore, schema *kindschema.Schema, tenantID, kindID, modelID string, body map[string]any) {
-	if err := store.DeleteIndexedFieldsByModel(ctx, dbgen.DeleteIndexedFieldsByModelParams{
-		TenantID: tenantID,
-		ModelID:  modelID,
-	}); err != nil {
-		slog.Error("clear indexed fields", "modelId", modelID, "err", err)
-		return
-	}
-	for _, row := range indexedfields.Extract(schema, tenantID, kindID, modelID, body) {
-		if _, err := store.CreateIndexedField(ctx, row); err != nil {
-			slog.Error("create indexed field", "modelId", modelID, "field", row.FieldKey, "err", err)
-		}
+func reindex(ctx context.Context, store indexedfields.Store, schema *kindschema.Schema, tenantID, kindID, modelID string, body map[string]any) {
+	if err := indexedfields.Rebuild(ctx, store, schema, tenantID, kindID, modelID, body); err != nil {
+		slog.Error("reindex model", "modelId", modelID, "err", err)
 	}
 }

@@ -1,4 +1,4 @@
-.PHONY: dev generate migrate bootstrap keys-list keys-create keys-rotate invites-create invites-list run build help
+.PHONY: dev generate migrate bootstrap keys-list keys-create keys-rotate invites-create invites-list reindex run build help
 
 dev: migrate ## Migrate, then start the API and web dev server together
 	@echo ">> API on :8080, web on :5173 (Ctrl+C to stop both)"
@@ -35,6 +35,10 @@ invites-create: ## Mint a single-use invite (optional TENANT=<xid> links to exis
 
 invites-list: ## List outstanding (unredeemed, non-expired) invites
 	go run ./cmd/server invites list
+
+reindex: ## Rebuild indexed fields for every model of a kind (usage: make reindex TENANT=<id> KIND=<id>)
+	@if [ -z "$(TENANT)" ] || [ -z "$(KIND)" ]; then echo "usage: make reindex TENANT=<tenant id> KIND=<kind id>"; exit 1; fi
+	go run ./cmd/server reindex --tenant "$(TENANT)" --kind "$(KIND)"
 
 run: ## Run just the API server (no web, no migrations)
 	go run ./cmd/server
