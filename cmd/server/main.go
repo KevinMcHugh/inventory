@@ -119,7 +119,14 @@ func runServer() error {
 	// Auth-protected: REST + MCP.
 	mcpHandler := mcpsdk.NewStreamableHTTPHandler(
 		func(*http.Request) *mcpsdk.Server { return mcpServer },
-		nil,
+		&mcpsdk.StreamableHTTPOptions{
+			// The sprite proxy delivers requests over loopback (local addr
+			// 127.0.0.1) with the public Host header, which the SDK's DNS
+			// rebinding guard rejects with 403. That guard protects
+			// unauthenticated localhost servers; every MCP request here
+			// already requires a bearer token, so it is safe to disable.
+			DisableLocalhostProtection: true,
+		},
 	)
 	r.Group(func(r chi.Router) {
 		r.Use(authmw.Auth(q, issuer))
