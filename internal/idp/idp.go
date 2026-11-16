@@ -36,10 +36,17 @@ const IntentTTL = 10 * time.Minute
 // Config carries the wiring one Handler needs. Issuer is the canonical base
 // URL of this server, used for building the OAuth redirect URIs we register
 // with the IDP.
+//
+// Google needs GoogleClientID and a token endpoint that authenticates this
+// server: on a sprite, GoogleTokenURL is a Sprites connector that adds the
+// client secret on its way to Google, so the secret never reaches the
+// sprite (docs/deploy.md); off a sprite, GoogleClientSecret is the secret
+// itself.
 type Config struct {
-	Issuer            string
-	GoogleClientID    string
+	Issuer             string
+	GoogleClientID     string
 	GoogleClientSecret string
+	GoogleTokenURL     string // default: Google's
 }
 
 // Handler is the http-facing surface. It reads/writes the DB through Q and

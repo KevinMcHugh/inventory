@@ -14,6 +14,7 @@ If you want to change something in a generated file, edit the source (OpenAPI sp
 - **IDs are xids.** All IDs are `github.com/rs/xid` values stored as `CHAR(20)`. Create with `xid.New().String()`.
 - **Soft delete.** Every table has `created_at`, `updated_at`, `deleted_at`. Every query filters `deleted_at IS NULL`. Deletes set `deleted_at = NOW()`.
 - **Tenant scoping.** Everything is under a tenant. `models` has a partial unique index on `(tenant_id, kind_id, slug) WHERE deleted_at IS NULL`.
+- **Secrets live in Sprites connectors, never on the sprite.** The Google client secret is in a connector (`deploy/connector.sh`, which the user runs on their own machine, never through you), and `internal/idp` posts to its `GOOGLE_TOKEN_URL` with no credential, sending basic auth only when it holds the secret itself (local development). Other config is the service's `--env`. See "Google SSO" in docs/deploy.md.
 - **Model bodies flow as `map[string]any` at API/MCP boundaries and `[]byte` (JSONB) in postgres.** The view-model layer marshals both directions.
 
 ## The Endpoint pattern

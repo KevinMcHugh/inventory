@@ -22,22 +22,22 @@ const (
 	googleScope        = "openid email profile"
 )
 
-// Mount attaches Google OAuth routes to r. Only registered when a
-// google-client-id and secret are configured; otherwise these routes stay
-// off and the /oauth/authorize form renders without a Google button.
+// Mount attaches Google OAuth routes to r. Only registered when Google is
+// configured (GoogleEnabled); otherwise these routes stay off and the
+// /oauth/authorize form renders without a Google button.
 func (h *Handler) Mount(r chi.Router) {
-	if h.Cfg.GoogleClientID == "" || h.Cfg.GoogleClientSecret == "" {
+	if !h.GoogleEnabled() {
 		return
 	}
 	r.Get("/auth/google", h.googleStart)
 	r.Get("/auth/google/callback", h.googleCallback)
 }
 
-// GoogleEnabled reports whether the handler was configured with Google
-// credentials — used by the /oauth/authorize page to decide whether to show
-// the button.
+// GoogleEnabled reports whether the handler has a client id and a way to
+// authenticate at the token endpoint (a connector, or the secret itself) —
+// used by the /oauth/authorize page to decide whether to show the button.
 func (h *Handler) GoogleEnabled() bool {
-	return h.Cfg.GoogleClientID != "" && h.Cfg.GoogleClientSecret != ""
+	return h.Cfg.GoogleClientID != "" && (h.Cfg.GoogleClientSecret != "" || h.Cfg.GoogleTokenURL != "")
 }
 
 // googleStart initiates a Google OAuth flow.
@@ -106,14 +106,7 @@ func (h *Handler) googleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Exchange the code for tokens.
-	tokenBody, err := postForm(r.Context(), googleTokenURL, url.Values{
-		"code":          {code},
-		"client_id":     {h.Cfg.GoogleClientID},
-		"client_secret": {h.Cfg.GoogleClientSecret},
-		"redirect_uri":  {h.Cfg.Issuer + "/auth/google/callback"},
-		"grant_type":    {"authorization_code"},
-	})
+	tokenBody, err := h.googleToken(r.Context(), code)
 	if err != nil {
 		http.Error(w, "token exchange failed: "+err.Error(), http.StatusBadGateway)
 		return
@@ -179,10 +172,35 @@ func (h *Handler) googleCallback(w http.ResponseWriter, r *http.Request) {
 // low-level http helpers
 // -----------------------------------------------------------------------------
 
-func postForm(ctx context.Context, endpoint string, values url.Values) ([]byte, error) {
+// googleToken exchanges the callback's code for Google's token response. The
+// client authenticates with HTTP Basic, which is also how a Sprites connector
+// sends the secret it holds; with no secret here, the token URL is that
+// connector, and the request leaves with no credential at all.
+func (h *Handler) googleToken(ctx context.Context, code string) ([]byte, error) {
+	endpoint := h.Cfg.GoogleTokenURL
+	if endpoint == "" {
+		endpoint = googleTokenURL
+	}
+	var id, secret string
+	if h.Cfg.GoogleClientSecret != "" {
+		id, secret = url.QueryEscape(h.Cfg.GoogleClientID), url.QueryEscape(h.Cfg.GoogleClientSecret)
+	}
+	return postForm(ctx, endpoint, url.Values{
+		"code":         {code},
+		"redirect_uri": {h.Cfg.Issuer + "/auth/google/callback"},
+		"grant_type":   {"authorization_code"},
+	}, id, secret)
+}
+
+// postForm posts values to endpoint, with HTTP Basic credentials when user
+// is not empty.
+func postForm(ctx context.Context, endpoint string, values url.Values, user, pass string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(values.Encode()))
 	if err != nil {
 		return nil, err
+	}
+	if user != "" {
+		req.SetBasicAuth(user, pass)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
