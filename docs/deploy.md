@@ -79,12 +79,40 @@ keys keep working as a fallback.
 5. Authorized JavaScript origins: `https://<sprite-name>-<org>.sprites.app`
 6. Authorized redirect URIs:
    `https://<sprite-name>-<org>.sprites.app/auth/google/callback`
-7. Copy the resulting **Client ID** and **Client secret**.
+7. Keep the resulting **Client ID** and **Client secret** to hand for the
+   next step, and nowhere else.
 
-### Wire them into the sprite service
+### Store the secret in a Sprites connector
+
+The client secret never goes on the sprite. A [Sprites
+connector](https://docs.sprites.dev/concepts/connectors/) holds it in the
+Sprites control plane and adds it, as HTTP Basic `client_id:client_secret`,
+to the one request that needs it: the code exchange at Google's token
+endpoint. The server posts to the connector's gateway URL with no
+credential; the gateway recognises the sprite by its platform identity and
+forwards to Google. Only the short-lived access token Google returns ever
+reaches the sprite, and rotating the secret needs no redeploy.
+
+Run this on your own machine, not on the sprite and not through Claude (a
+secret typed into a conversation has left your hands). `SPRITES_TOKEN` is a
+token from [sprites.dev/account](https://sprites.dev/account):
+
+```sh
+SPRITES_TOKEN=… deploy/connector.sh inventory-google https://oauth2.googleapis.com /token <sprite-name>
+```
+
+It asks for the client id and secret without echoing them, sends them to the
+Sprites API on stdin, and prints the token URL. The connector it makes lets
+only sprites whose name starts with `<sprite-name>` use it, and only for
+`/token`. Run it again with the same name to rotate the secret.
+
+From the sprite, `curl -sS https://api.sprites.dev/v1/gateway/list` shows the
+connectors it may use (never a credential).
+
+### Wire it into the sprite service
 
 The service env is set at create time, so re-create it with the two extra
-vars:
+vars. Neither is a secret: the client id is in every sign-in link.
 
 ```sh
 sprite exec -- bash -lc '/.sprite/bin/sprite-env services stop inventory'
@@ -93,12 +121,21 @@ sprite exec -- bash -lc '/.sprite/bin/sprite-env services create inventory \
   --cmd /home/sprite/inventory/bin/server \
   --dir /home/sprite/inventory \
   --needs postgres --http-port 8080 \
-  --env "DATABASE_URL=postgres:///inventory?host=/var/run/postgresql&sslmode=disable,PORT=8080,PUBLIC_URL=https://<sprite-name>-<org>.sprites.app,GOOGLE_CLIENT_ID=<paste>,GOOGLE_CLIENT_SECRET=<paste>" \
+  --env "DATABASE_URL=postgres:///inventory?host=/var/run/postgresql&sslmode=disable,PORT=8080,PUBLIC_URL=https://<sprite-name>-<org>.sprites.app,GOOGLE_CLIENT_ID=<client id>,GOOGLE_TOKEN_URL=<token URL from connector.sh>" \
   --no-stream'
 ```
 
 Verify the Google button now appears at `/oauth/authorize` (open any test
-authorize URL) and on the web sign-in screen.
+authorize URL) and on the web sign-in screen, then sign in with it once: that
+is the request that goes through the connector.
+
+If `GOOGLE_CLIENT_SECRET` was on the service before, it is gone from the new
+definition, but it sat in the sprite's checkpoints: reset it in the Google
+Cloud console and store the new one with `connector.sh`.
+
+For local development there is no gateway (it answers only sprites), so
+export `GOOGLE_CLIENT_SECRET` for a separate development OAuth client
+instead, and leave `GOOGLE_TOKEN_URL` unset.
 
 ## Notes on the sprite runtime
 

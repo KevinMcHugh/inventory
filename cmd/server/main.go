@@ -89,7 +89,8 @@ func runServer() error {
 		Cfg: idp.Config{
 			Issuer:             issuer,
 			GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
-			GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+			GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"), // off a sprite only
+			GoogleTokenURL:     os.Getenv("GOOGLE_TOKEN_URL"),     // the Sprites connector
 		},
 		Q:           q,
 		TokenMinter: oauthMinter{h: oauthHandler},
