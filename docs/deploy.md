@@ -98,7 +98,7 @@ secret typed into a conversation has left your hands). `SPRITES_TOKEN` is a
 token from [sprites.dev/account](https://sprites.dev/account):
 
 ```sh
-SPRITES_TOKEN=… deploy/connector.sh inventory-google https://oauth2.googleapis.com /token <sprite-name>
+SPRITES_TOKEN=… deploy/connector.sh inventory-google https://oauth2.googleapis.com/token <sprite-name>
 ```
 
 It asks for the client id and secret without echoing them, sends them to the
